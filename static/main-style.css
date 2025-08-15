@@ -1,0 +1,257 @@
+:root {
+    --kangaroo: #b8a1a0;
+    --flamingo: #b59a9a;
+    --unicorn: #b87d9b;
+    --platypus: #9f82bd;
+    --raccoon: #b26c80;
+    --tortoise: #b37884;
+    --dinosaur: #ba8569;
+    --yak: #baa778;
+    --lizard: #82b37b;
+    --chameleon: #73b2a8;
+    --stingray: #6ca7b3;
+    --narwhal: #5ca0b2;
+    --dolphin: #6c8fb9;
+    --jellyfish: #8b96bf;
+    --cuttlefish: #9ba3b6;
+    --walrus: #9299a3;
+    --penguin: #7f8392;
+    --meerkat: #73767e;
+    --weasel: #626474;
+    --mongoose: #54565c;
+    --lemur: #464858;
+    --hamster: #353645;
+    --badger: #24242f;
+    --kitten: #15151d;
+    --puppy: #141417;
+    --hamster: #0d0d0f;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--kitten);
+    color: var(--cuttlefish);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    height: auto;
+    padding-top: 4px;
+}
+
+select {
+    color: var(--jellyfish);
+    font-size: 18px;
+}
+
+textarea {
+    color: var(--cuttlefish);
+}
+
+.model-selector {
+    width:30%;
+    justify-self: center;
+    background-color: var(--kitten);
+}
+
+.group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 20px;
+    padding: 20px;
+}
+
+/* Контейнер теперь с отступом сверху 50px и без лишнего padding/height */
+/* Контейнер теперь с отступом сверху 100px */
+/* Контейнер теперь с отступом сверху 180px */
+.container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 90px; /* reduced by half from 180px */
+    padding: 0;
+    height: auto;
+}
+/* Seed field визуально выделяем */
+/* Расширяем только поле seed (id seed-text генерируется макросом) */
+.field input#sid-text.slider-value {
+    width: 120px !important;
+    max-width: 120px !important;
+    min-width: 120px !important;
+}
+
+.audio-item { position: relative; }
+.audio-item button.delete-audio { position:absolute; top:4px; right:6px; background:#b33; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:12px; padding:2px 6px; opacity:.85; }
+.audio-item button.delete-audio:hover { opacity:1; background:#d44; }
+
+/* Убираем лишние внешние и внутренние отступы, только 50px сверху через .container */
+.third-box {
+    box-sizing: border-box;
+    padding: 0 48px 16px 48px; /* doubled horizontal padding (24 -> 48) */
+    border: 1px solid var(--border-color);
+    border-radius: 1em;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+    background-color: var(--kitten);
+    min-width: 33vw;
+    margin: 0;
+    height: auto;
+    align-content: flex-start;
+    display: grid;
+}
+
+/* (Reverted) Removed specialized gen-box, center-queue, results-box classes */
+
+.field {
+    margin-bottom: 2em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    margin:auto;
+    flex-basis: 0;
+    padding: 10px;
+    flex-grow: 1;
+}
+
+.slider-value {
+    max-width: 35px;
+    text-align: center;
+    border-radius: 50px;
+    border: 2px solid #ccc;
+    background-color: var(--jellyfish);
+}
+
+.field label {
+    display: block;
+    margin-bottom: 0.5em;
+    color: var(--light-text-color); 
+    font-size: 1.5em;
+    font-weight: 500;
+}
+
+.submit-container {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    width: 100%;
+    border: 0px;
+}
+
+#text {
+    background-color: var(--kitten); /* Light grey; replace with any color you like */
+    border-width: 1px;
+    border-color: var(--kangaroo);
+    border-radius: 4%;
+    padding: 4px;
+}
+
+.submit-button {
+    width: 20%;
+    align-self: center;
+    border-color: var(--kitten);
+    background-color: var(--jellyfish);
+    border-radius: 20%;
+}
+
+.submit-button:hover {
+    background-color: var(--platypus);
+}
+
+.submit-button:active {
+    background-color: var(--unicorn);
+    transform: scale(0.95);
+}
+
+.prompt-queue {
+    flex-basis: 30%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 95vh;
+}
+
+.audio-item {
+    width:95%;
+    max-width: 95%;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid var(--hamster);
+    border-radius: 5px;
+    box-shadow: 0px 0px 5px var(--flamingo);
+    justify-content: space-between;
+    animation: fadeIn 1.8s;
+}
+
+.audio-item-params {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    justify-items: center; 
+    align-items: center;
+    width: 90%;
+    max-width: 90%;
+    margin: 0 auto;
+}
+
+.audio-item-text {
+    max-width: 90%;
+    overflow-wrap: break-word;
+    text-align: left;
+}
+
+.audio-list {
+    flex-basis: 30%;
+    max-height: 95vh;
+    height:90%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-right: 20px;
+}
+
+@keyframes fadeIn {
+    0% {opacity: 0;}
+    100% {opacity: 1;}
+}
+
+.audio-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.audio-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.audio-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+}
+
+.model-melody {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: start;
+}
+
+@keyframes gradient {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+.loading {
+    background: linear-gradient(-83deg, var(--flamingo), var(--lizard), var(--meerkat));
+    background-size: 400% 400%;
+    animation: gradient 1.8s ease infinite;
+    color: white;
+}

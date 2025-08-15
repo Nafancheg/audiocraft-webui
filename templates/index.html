@@ -1,0 +1,218 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Music Gen Webui 2.0</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='main-style.css') }}">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<style>
+    /* Увеличенные числовые поля для слайдеров */
+    .slider-value {
+        width: 80px; /* изменено с 120px по запросу */
+        font-size: 16px;
+        padding: 6px 8px;
+        box-sizing: border-box;
+        border: 1px solid #bbb;
+        border-radius: 4px; /* можно поставить 0 если нужны абсолютно квадратные */
+        background: #fff;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    /* Расширяем все текстовые поля для ввода параметров */
+    input[type="text"], input[type="number"], input[type="file"] {
+        width: 100% !important;
+        min-width: 220px;
+        font-size: 16px;
+        padding: 8px 10px;
+        box-sizing: border-box;
+        margin-bottom: 8px;
+    }
+    textarea {
+        width: 100% !important;
+        min-width: 220px;
+        font-size: 16px;
+        padding: 10px 12px;
+        box-sizing: border-box;
+        resize: vertical;
+    }
+        /* Убираем круглые стрелки/скругления у числовых полей в разных браузерах */
+        input[type=number].slider-value {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+        input[type=number].slider-value::-webkit-outer-spin-button,
+        input[type=number].slider-value::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+    }
+    /* Расширенное текстовое поле для ввода промпта */
+    .submit-container textarea#text {
+    width: 100% !important;
+    min-width: 220px;
+    min-height: 180px;
+    font-size: 16px;
+    line-height: 1.35;
+    padding: 12px 14px;
+    resize: vertical;
+    box-sizing: border-box;
+    }
+</style>
+<style>
+    /* Форсируем ширину числовых инпутов, если их переопределяет внешний main-style.css */
+    .field input.slider-value[type=number] {
+        width: 80px !important;
+        max-width: 80px !important; /* переопределяем max-width:35px из внешнего CSS */
+        min-width: 80px !important;
+        flex: 0 0 80px;
+    }
+    /* Аккуратное выравнивание слайдера и числа */
+    .field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: nowrap;
+        flex-direction: row; /* чтобы инпут и слайдер шли в одну строку */
+    }
+    .field > label {
+        min-width: 120px;
+        font-weight: 500;
+    }
+    .field input[type=range] {
+        flex: 1 1 auto;
+        max-width: 340px;
+    }
+</style>
+<style>
+    /* Дополнительное усиление специфичности, если внешние стили продолжают переопределять */
+    body .third-box .field input.slider-value[type=number] {
+        width: 80px !important;
+        min-width: 80px !important;
+        height: 34px !important; /* фиксируем высоту */
+        line-height: 1.2;
+        border-radius: 4px !important; /* поменяйте на 0 если нужно без скругления */
+        padding: 6px 8px !important;
+        box-sizing: border-box;
+    }
+    /* Если где-то задан border-radius:50% */
+    body .third-box .field input.slider-value[type=number][style*="border-radius:50%"] {
+        border-radius:4px !important;
+    }
+</style>
+
+</head>
+
+<body>
+    {% macro slider_field(id, name, min_value, max_value, step_value, data) %}
+    <div class="field">
+        <label for="{{ name }}">{{ name }}</label>
+        <input type="range" id="{{ id }}" name="{{ name }}" min="{{ min_value }}" max="{{ max_value }}" step="{{ step_value }}" value="{{ data }}" oninput="updateSliderValue('{{ id }}', this.value)">
+        <input type="number" id="{{ id }}-text" value="{{ data }}" class="slider-value" min="{{ min_value }}" max="{{ max_value }}" step="{{ step_value }}" oninput="updateRangeValue('{{ id }}', this.value)">
+    </div>
+    <script>
+        function updateSliderValue(sliderName, value) {
+            document.getElementById(sliderName + '-text').value = value;
+            socket.emit('slider_change', {sliderName: sliderName, value: value});
+        }
+
+        function updateRangeValue(sliderName, value) {
+            var rangeInput = document.getElementById(sliderName);
+            var newValue = parseFloat(value);
+            if (!isNaN(newValue) && newValue >= parseFloat(rangeInput.min) && newValue <= parseFloat(rangeInput.max)) {
+                rangeInput.value = newValue;
+                socket.emit('slider_change', {sliderName: sliderName, value: newValue});
+            }
+        }
+    </script>
+    {% endmacro %}
+    <div class="container"></div>
+        <div class="third-box">
+
+            <select id="modelSelector" class="model-selector">
+                {% set model_options = ["small", "medium", "large", "melody"] %}
+                {% for option in model_options %}
+                    <option value="{{ option }}" {% if option == default_model %}selected{% endif %}>{{ option.capitalize() }}</option>
+                {% endfor %}
+            </select>            
+
+            <div id="melody-field" class="field">
+                <input type="file" id="melody" name="melody" accept="audio/*">
+                <audio id="audio-preview" controls></audio>
+            </div>
+
+            <script>
+                document.getElementById('melody').addEventListener('change', async function(event) {
+                    var files = event.target.files;
+                    if (files.length === 0) {
+                        audioElement.src = "";
+                        return;
+                    }
+                    var file = files[0];
+                    if (file.type.startsWith('audio/')) {
+                        var formData = new FormData();
+                        formData.append('melody', file);
+                    }
+                    try {
+                        const response = await fetch('/upload_melody', {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        const data = await response.json();
+                        var audioElement = document.getElementById('audio-preview');
+                        audioElement.src = data.filePath;
+                    } catch(error) {
+                        audioElement.src = "";
+                    }
+                });
+            </script>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    var modelSelector = document.getElementById('modelSelector');
+                    var melodyField = document.getElementById('melody-field');
+                    var audioElement = document.getElementById('audio-preview');
+                    var fileInput = document.getElementById('melody');
+
+                    function updateUI() {
+                        fileInput.value = "";
+                        audioElement.src = "";
+                        if(modelSelector.value !== 'melody') {
+                            melodyField.style.display = 'none';
+                        } else {
+                            melodyField.style.display = 'block';
+                        }
+                    }
+                    modelSelector.addEventListener('change', updateUI);
+                    updateUI();
+                });
+            </script>
+    
+            <div class="group slider-group">
+                    <div>
+                        {{ slider_field('top_k', 'Top K', 0, 1000, 1, topk) }}
+                        {{ slider_field('duration', 'Duration', 1, 1000, 1, duration) }}
+                        {{ slider_field('cfg_coef', 'CFG', 1, 10, 0.1, cfg_coef) }}
+                        {{ slider_field('seed', 'Seed', -1, 99999999, 1, seed if seed is defined else -1) }}
+                    </div>
+
+                    <div>
+                        {{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp) }}
+                        {{ slider_field('temperature', 'Temperature', 0.1, 5, 0.01, temperature) }}
+                    </div>
+            </div>
+
+            <div class="submit-container">
+                <textarea id="text" name="text" rows="6" placeholder="Введите подробный музыкальный промпт..." required="">{{ default_text }}</textarea>
+                <button type="button" class="submit-button" onclick="submitSliders()">Submit</button>
+            </div>
+    </div>
+
+    <div class="prompt-queue third-box"></div>
+    <div class="audio-list third-box"></div>   
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
