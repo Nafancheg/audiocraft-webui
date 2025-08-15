@@ -3,7 +3,7 @@
 # audiocraft-webui v2.0!
 Local web UI for Facebook's Audiocraft model: <https://github.com/facebookresearch/audiocraft>
 
-![](https://github.com/CoffeeVampir3/audiocraft-webui/blob/1a1390e2842a7eaa8de376503abb51fbfad233ca/preview.png)
+<img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/35aee0b5-8829-48ec-b850-0482b6ce1086" />
 
 ## Features:
 
