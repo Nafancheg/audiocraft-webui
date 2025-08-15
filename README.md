@@ -1,6 +1,6 @@
 [![Discord](https://img.shields.io/discord/232596713892872193?logo=discord)](https://discord.gg/2JhHVh7CGu)
 
-# audiocraft-webui v2.0!
+# audiocraft-webui v2.1!
 Local web UI for Facebook's Audiocraft model: <https://github.com/facebookresearch/audiocraft>
 
 <img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/35aee0b5-8829-48ec-b850-0482b6ce1086" />
