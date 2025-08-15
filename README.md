@@ -1,28 +1,31 @@
 [![Discord](https://img.shields.io/discord/232596713892872193?logo=discord)](https://discord.gg/2JhHVh7CGu)
 
-# audiocraft-webui v2.1!
+# audiocraft-webui v2.0!
 Local web UI for Facebook's Audiocraft model: <https://github.com/facebookresearch/audiocraft>
 
 <img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/35aee0b5-8829-48ec-b850-0482b6ce1086" />
 
-## Features:
+## Features
 
-- **Long Audio**: Generate audio as long as you like.
-- **Processing Queue**: Add multiple prompts to the queue and process them automatically.
-- **Generation History**: Replay generated audio and view the settings used for each.
+- **Long Audio (chunked)**: Queue up long prompts; audio segments processed sequentially (practical GPU limits still apply).
+- **Processing Queue**: Add multiple prompts; they auto-run in FIFO order.
+- **Generation History**: Each audio file is stored with a paired JSON (parameters + prompt).
+- **Seed (reproducibility)**: Use -1 for random or set a positive integer to reproduce a result.
+- **Melody / Audio Prompt mode**: Supply a guiding melody (Melody model) to steer generation.
+- **Deletion**: Remove generated audio + its metadata directly from the UI (X button).
 
-## Install:
+## Install
 
 If you'd like GPU acceleration and do not have torch installed, visit [PyTorch Installation Guide](https://pytorch.org/get-started/locally/) for instructions on installing GPU-enabled torch correctly.
 
-### **Option 1: Manual Installation (Classic Method)**
+### Option 1: Manual Installation
 If you prefer manual installation, install dependencies using:
 ```bash
 pip install -r requirements.txt
 ```
 (If you encounter errors with **audiocraft**, please refer to their [official documentation](https://github.com/facebookresearch/audiocraft)).
 
-### **Option 2: Using the Install Script (Automated Setup)**
+### Option 2: Install Script (Automated)
 To automate installation and environment setup, use the provided script:
 - **Linux/macOS:**
   ```bash
@@ -36,15 +39,15 @@ This will check for **Python 3.10**, create a virtual environment (`venv`), and 
 
 ---
 
-## Run:
+## Run
 
-### **Option 1: Manual Run (Classic Method)**
+### Option 1: Manual
 Start the web UI manually using:
 ```bash
 python webui.py
 ```
 
-### **Option 2: Using the Run Script (Automated Execution)**
+### Option 2: Run Script
 Alternatively, use the run script for easier execution:
 - **Linux/macOS:**
   ```bash
@@ -58,13 +61,13 @@ This will automatically activate the appropriate environment (virtualenv or Cond
 
 ---
 
-There's no need to download any external models. Simply pick a model from the dropdown menu, and when you run it for the first time, it will be automatically downloaded via **Audiocraft**.
+No need to manually download the checkpoints—pick a model from the dropdown; on first use it will auto-download via Audiocraft.
 
-If you want to use **Melody Mode**, select the **Melody model**, and an option to upload your melody audio file will appear.
+To use **Melody / Audio Prompt** guidance choose the `melody` model; an upload input will appear for a short reference audio clip.
 
 ---
 
-## Notes:
+## Notes
 - Generated files are saved in the `static/audio/` directory.
 - The currently active model remains loaded in memory by default. To unload it after each generation, launch with:
   ```bash
@@ -74,17 +77,20 @@ If you want to use **Melody Mode**, select the **Melody model**, and an option t
 
 ---
 
-## Parameters:
+## Parameters
 
-- **Top-K**: Affects the variety of generated audio. Higher values lead to more diverse results but may increase randomness.
-- **Top-P**: Recommended around 0.7. Controls sampling diversity, with lower values producing more stable results.
-- **Duration**: Length of generated audio.
-- **CFG (Classifier Free Guidance)**: Determines how strictly the output follows the prompt (recommended 3-5).
-- **Temperature**: Controls randomness. Higher values (1.05-1.5) create more chaotic results, while lower values yield structured outputs.
+- **Top K**: Restricts candidate tokens. Lower = more deterministic, higher = more variety.
+- **Top P**: Nucleus sampling threshold (probability mass). ~0.7 is a common starting point.
+- **Duration**: Target length (seconds) per generation request.
+- **CFG (Classifier-Free Guidance)**: Strength of adherence to text. 3–5 typically balances fidelity and creativity.
+- **Temperature**: Randomness scaler. <1.0 = conservative, >1.0 = more exploratory.
+- **Seed**: -1 = random each run; any non-negative integer gives reproducible output.
+- **Model**: small / medium / large / melody (melody enables audio prompt input).
+- **Audio Prompt**: (Melody model only) A guiding reference (timbre / contour).
 
 ---
 
-## Troubleshooting:
+## Troubleshooting
 - **Torch Installation Issues:**
   Ensure you have the correct **CPU/GPU version** installed ([PyTorch Guide](https://pytorch.org/get-started/locally/)).
 - **Virtual Environment Issues:**
@@ -106,10 +112,29 @@ If you want to use **Melody Mode**, select the **Melody model**, and an option t
 
 ---
 
-## Changelog:
+## Changelog
 
-### Feb-25-2024:
-- Rewrote everything.
-- Added generation history for audio outputs.
+### 2024-02-25
+- Core rewrite.
+- Added generation history (audio + JSON pairing).
 - Removed outdated dependencies.
-- Removed deprecated parameters (`overlap` and `segments`).
+- Removed deprecated parameters (`overlap`, `segments`).
+
+### 2025-08-16
+- Added Seed slider (reproducibility, -1 random).
+- Added parameter normalization; unified key `seed`.
+- Added filename suffix `_seed<value>` when seed >= 0.
+- Added delete button to remove audio + metadata.
+- Fixed melody (audio prompt) local path loading.
+
+---
+## Planned / Roadmap (short extract)
+See `TODO.md` for full details.
+- Format & sample rate selection.
+- Continuation (append) mode.
+- Stem split (Demucs) & multi-band diffusion post-process.
+- Loop mode (seamless crossfade loop creation).
+- MP3 / FLAC export.
+
+## Contributing
+PRs for UI polish, performance optimizations, and new parameter support are welcome. Please keep changes focused and documented in the Changelog section.

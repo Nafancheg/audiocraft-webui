@@ -43,6 +43,3 @@ Success response:
 - "Regenerate" button using same Sid.
 - Quick random Sid button near the slider.
 - Backend range validation (clamp > 99,999,999).
-
-## Backward compatibility
-Legacy JSON files with `seed` or `cfg_seed` keys are still displayed as `Sid`.
