@@ -1,6 +1,6 @@
 [![Discord](https://img.shields.io/discord/232596713892872193?logo=discord)](https://discord.gg/2JhHVh7CGu)
 
-# audiocraft-webui (чатовый интерфейс)
+# audiocraft-webui v.3
 Локальный веб‑интерфейс для модели Audiocraft от Facebook: <https://github.com/facebookresearch/audiocraft>
 
 <img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/f3a686c1-36c7-49e6-bb8c-9b2bc3fda4ca" />
