@@ -7,6 +7,7 @@
 <title>Music Gen Webui 2.0</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='main-style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='override.css') }}">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 
 <style>
@@ -16,12 +17,15 @@
         font-size: 16px;
         padding: 6px 8px;
         box-sizing: border-box;
-        border: 1px solid #bbb;
+        border: 1px solid #444;
         border-radius: 4px; /* можно поставить 0 если нужны абсолютно квадратные */
-        background: #fff;
+        background: #2b2b2b; /* тёмный вместо белого */
+        color: #eee;
         display: inline-block;
         vertical-align: middle;
+        transition: border-color .18s, background .25s;
     }
+    .slider-value:focus { outline:none; border-color:#5a84f5; background:#24272b; }
     /* Расширяем все текстовые поля для ввода параметров */
     input[type="text"], input[type="number"], input[type="file"] {
         width: 100% !important;
@@ -101,12 +105,138 @@
     body .third-box .field input.slider-value[type=number][style*="border-radius:50%"] {
         border-radius:4px !important;
     }
+    /* Большее поле конкретно для seed, чтобы влезали все цифры */
+    #seed-text.slider-value[type=number] {
+        width: 150px !important;
+        min-width: 150px !important;
+        max-width: 150px !important;
+        font-variant-numeric: tabular-nums;
+        font-family: monospace;
+        letter-spacing: .5px;
+    }
 </style>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #1e1e1e;       /* тёмный фон */
+        color: #ddd;               /* светлый текст */
+    }
+
+    .page-wrapper {
+        width:100%;
+        max-width:none;
+        margin:0;
+        padding:0 20px 20px 0; /* убираем левый внутренний отступ, чтобы сайдбар прилипал */
+        text-align:left;
+        box-sizing:border-box;
+    }
+
+    /* Поля */
+    .field {
+        margin-bottom: 14px;
+    }
+
+    .field label {
+        color: #ccc;
+        font-weight: 500;
+    }
+
+    input, select, textarea {
+        background: #2b2b2b;
+        color: #eee;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 6px 8px;
+    }
+    input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #888;
+    }
+
+    /* Кнопки */
+    button, .submit-button {
+        background: #3a6df0;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 8px 14px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    button:hover, .submit-button:hover {
+        background: #5a84f5;
+    }
+
+    /* Контейнеры */
+    .third-box {
+        margin-top: 20px;
+        padding: 12px;
+        background: #252525;
+        border: 1px solid #333;
+        border-radius: 6px;
+        text-align: left;
+    }
+
+    .submit-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 20px;
+    }
+    .submit-container button {
+        align-self: flex-start;
+    }
+    /* Новая компоновка */
+    .app-shell{display:flex; gap:0; align-items:stretch; width:100%; min-height:100vh;}
+    .sidebar{width:500px; flex:0 0 500px; background:#202225; border-right:1px solid #2e2e2e; padding:20px 18px 28px 22px; box-sizing:border-box; overflow-y:auto; max-height:100vh; position:sticky; top:0; align-self:flex-start;}
+    .chat-area{flex:1 1 auto; display:flex; flex-direction:column; gap:12px; padding:20px 24px 100px 32px; box-sizing:border-box; min-height:100vh;}
+    .sidebar .field label{font-size:14px;}
+    .sidebar select, .sidebar input, .sidebar textarea, .sidebar button{font-size:14px;}
+    .sidebar::-webkit-scrollbar{width:10px;}
+    .sidebar::-webkit-scrollbar-track{background:#1a1b1e;}
+    .sidebar::-webkit-scrollbar-thumb{background:#333; border-radius:6px;}
+    :root{ --chat-height:480px; }
+    .chat-messages{flex:0 0 var(--chat-height); height:var(--chat-height); overflow-y:auto; padding:8px 4px 12px; display:flex; flex-direction:column; gap:10px; scrollbar-width:thin; background:#18191c; border:1px solid #262626; border-radius:8px;}
+    @media (max-height:800px){ :root{ --chat-height:260px; } }
+    .chat-input-bar{position:sticky; bottom:0; padding:12px 0 0; background:linear-gradient(to top,#1e1e1e 70%, rgba(30,30,30,0)); margin-top:auto;}
+    .chat-input-bar .submit-container textarea{min-height:90px; background:#202327; border:1px solid #32363b; border-radius:14px; padding:14px 16px; font-size:15px; line-height:1.4; box-shadow:0 0 0 0 rgba(90,132,245,0); transition:border-color .18s, box-shadow .18s, background .25s;}
+    .chat-input-bar .submit-container textarea:focus{border-color:#4a6df0; box-shadow:0 0 0 2px rgba(74,109,240,0.35); background:#1c1f23;}
+    .chat-input-bar .submit-container textarea::placeholder{color:#6b7078; opacity:1;}
+    .chat-msg{max-width:880px; border-radius:10px; padding:0; display:flex;}
+    .chat-msg .msg-inner{padding:10px 14px; border-radius:10px; line-height:1.4; font-size:15px; white-space:pre-wrap; word-break:break-word;}
+    .chat-msg.user .msg-inner{background:#2f4b8b; color:#fff; align-self:flex-end; margin-left:auto;}
+    .chat-msg.system .msg-inner{background:#303030; color:#ddd;}
+    .chat-msg.assistant .msg-inner{background:#2a2a2a; color:#e2e2e2;}
+    .results-panels{display:flex; flex-direction:column; gap:12px;}
+    @media (max-width:1150px){ .app-shell{flex-direction:column;} .sidebar{width:100%; flex:0 0 auto; position:relative; top:0; max-height:none; border-right:none; border-bottom:1px solid #2e2e2e; border-radius:0;} .chat-area{padding:16px 16px 100px;} }
+    /* Custom audio player */
+    .custom-player{display:flex; gap:10px; align-items:center; background:#1f2226; border:1px solid #2f3338; padding:10px 12px; border-radius:8px; font-size:12px; user-select:none;}
+    .custom-player .cp-btn{background:#2e5aa7; color:#fff; border:none; padding:6px 10px; cursor:pointer; border-radius:6px; font-size:13px; line-height:1; display:inline-flex; align-items:center; justify-content:center;}
+    .custom-player .cp-btn:hover{background:#3973d0;}
+    .custom-player .cp-btn.cp-play{min-width:46px; font-weight:600;}
+    .custom-player .cp-btn.cp-loop.active{background:#4d8f34;}
+    .custom-player .cp-timeline-wrap{flex:1 1 auto; display:flex; flex-direction:column; gap:4px;}
+    .custom-player .cp-timeline{height:6px; background:#333b44; border-radius:4px; position:relative; cursor:pointer;}
+    .custom-player .cp-progress{position:absolute; left:0; top:0; height:100%; width:0%; background:linear-gradient(90deg,#58c4ff,#9e6bff); border-radius:4px;}
+    .custom-player .cp-time{font-size:11px; opacity:.75; font-family:monospace;}
+    .custom-player .cp-right{display:flex; align-items:center; gap:8px;}
+    .custom-player .cp-vol{width:80px;}
+    .custom-player a.cp-dl{color:#fff; text-decoration:none;}
+    .custom-player a.cp-dl:hover{text-decoration:underline;}
+</style>
+
 
 </head>
 
 <body>
+    <div class="page-wrapper">
     {% macro slider_field(id, name, min_value, max_value, step_value, data) %}
+
+
     <div class="field">
         <label for="{{ name }}">{{ name }}</label>
         <input type="range" id="{{ id }}" name="{{ name }}" min="{{ min_value }}" max="{{ max_value }}" step="{{ step_value }}" value="{{ data }}" oninput="updateSliderValue('{{ id }}', this.value)">
@@ -128,23 +258,64 @@
         }
     </script>
     {% endmacro %}
-    <div class="container"></div>
-        <div class="third-box">
-
-            <select id="modelSelector" class="model-selector">
+        <div class="app-shell">
+            <!-- FROZEN SIDEBAR START: НЕ МЕНЯТЬ РАЗМЕТКУ БЕЗ РАЗРЕШЕНИЯ -->
+            <aside class="sidebar">
+                <div class="field" style="margin-top:6px;" >
+                    <label for="lang-select" data-i18n="language_label">Language</label>
+                    <select id="lang-select" style="flex:1; padding:6px 8px;">
+                        <option value="en">English</option>
+                        <option value="ru">Русский</option>
+                    </select>
+                </div>
+                        <select id="modelSelector" class="model-selector" data-i18n-placeholder="model_selector" style="margin-top:4px; width:100%;">
                 {% set model_options = ["small", "medium", "large", "melody"] %}
                 {% for option in model_options %}
                     <option value="{{ option }}" {% if option == default_model %}selected{% endif %}>{{ option.capitalize() }}</option>
                 {% endfor %}
             </select>            
-
-            <div id="melody-field" class="field">
-                <input type="file" id="melody" name="melody" accept="audio/*">
-                <audio id="audio-preview" controls></audio>
+            <div class="field" style="margin-top:10px;">
+                <label for="formatSelect" data-i18n="format">Format</label>
+                <select id="formatSelect" style="flex:1; padding:6px 8px;">
+                    <option value="wav" selected>WAV</option>
+                    <option value="flac">FLAC</option>
+                    <option value="mp3">MP3 (exp)</option>
+                </select>
+            </div>
+        
+            <small style="display:block; margin-top:4px; opacity:.7; font-size:12px; line-height:1.3;">
+                FLAC / MP3 требуют установленный ffmpeg.
+                {% if ffmpeg_available %}
+                    <span style="color:#2c2;">ffmpeg найден{% if ffmpeg_path %}: {{ ffmpeg_path }}{% endif %}</span>
+                {% else %}
+                    <span style="color:#c22;">ffmpeg не найден — будет WAV (добавьте ffmpeg в PATH или задайте FFMPEG_PATH)</span>
+                {% endif %}
+            </small>
+            <div class="field" style="margin-top:6px;">
+                <label for="sampleRateSelect" data-i18n="sample_rate">Sample Rate</label>
+                <select id="sampleRateSelect" style="flex:1; padding:6px 8px;">
+                    <option value="original" selected>Original</option>
+                    <option value="48000">48000</option>
+                    <option value="32000">32000</option>
+                    <option value="16000">16000</option>
+                </select>
+            </div>
+            <div id="audio-prompt-field" class="field" style="flex-direction:column; align-items:stretch; gap:6px;">
+                <label for="audio_prompt" style="font-weight:500;" data-i18n="audio_prompt">Audio Prompt</label>
+                <input type="file" id="audio_prompt" name="audio_prompt" accept="audio/*" title="Выберите аудио-файл как условие (optional)">
+                <audio id="audio-preview" controls style="display:none; width:100%;"></audio>
+            </div>
+            <div id="continuation-field" class="field" style="flex-direction:column; align-items:stretch; gap:6px; display:none;">
+                <label style="font-weight:500; display:flex; align-items:center; gap:8px;" data-i18n-wrapper="append_continuation">
+                    <input type="checkbox" id="append-continuation"> <span data-i18n="append_continuation">Append continuation</span>
+                </label>
+                <input type="file" id="continuation_input" accept="audio/*" title="Файл для продолжения (конкатенация)">
+                <audio id="continuation-preview" controls style="display:none; width:100%;"></audio>
+                <small style="opacity:.7; font-size:12px;">При включении файл будет добавлен перед новой генерацией (duration относится только к новой части).</small>
             </div>
 
             <script>
-                document.getElementById('melody').addEventListener('change', async function(event) {
+                document.getElementById('audio_prompt').addEventListener('change', async function(event) {
                     var files = event.target.files;
                     if (files.length === 0) {
                         audioElement.src = "";
@@ -153,7 +324,7 @@
                     var file = files[0];
                     if (file.type.startsWith('audio/')) {
                         var formData = new FormData();
-                        formData.append('melody', file);
+                        formData.append('melody', file); /* backend route reuse */
                     }
                     try {
                         const response = await fetch('/upload_melody', {
@@ -163,8 +334,10 @@
                         const data = await response.json();
                         var audioElement = document.getElementById('audio-preview');
                         audioElement.src = data.filePath;
+                        audioElement.style.display = 'block';
                     } catch(error) {
                         audioElement.src = "";
+                        audioElement.style.display = 'none';
                     }
                 });
             </script>
@@ -172,9 +345,13 @@
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
                     var modelSelector = document.getElementById('modelSelector');
-                    var melodyField = document.getElementById('melody-field');
+                    var melodyField = document.getElementById('audio-prompt-field');
+                    var continuationField = document.getElementById('continuation-field');
                     var audioElement = document.getElementById('audio-preview');
-                    var fileInput = document.getElementById('melody');
+                    var fileInput = document.getElementById('audio_prompt');
+                    var appendCb = document.getElementById('append-continuation');
+                    var contInput = document.getElementById('continuation_input');
+                    var contAudio = document.getElementById('continuation-preview');
 
                     function updateUI() {
                         fileInput.value = "";
@@ -184,35 +361,266 @@
                         } else {
                             melodyField.style.display = 'block';
                         }
+                        // Continuation UI доступен всегда
+                        continuationField.style.display = 'block';
+                    }
+                    contInput.addEventListener('change', async function(ev){
+                        if (!contInput.files.length){ contAudio.src=''; contAudio.style.display='none'; return; }
+                        var file = contInput.files[0];
+                        if (!file.type.startsWith('audio/')) { contAudio.src=''; contAudio.style.display='none'; return; }
+                        var fd = new FormData(); fd.append('continuation', file);
+                        try {
+                            const r = await fetch('/upload_continuation', { method:'POST', body: fd });
+                            const d = await r.json();
+                            if (d.filePath){
+                                contAudio.src = d.filePath;
+                                if (appendCb.checked) {
+                                    contAudio.style.display='block';
+                                } else {
+                                    contAudio.style.display='none';
+                                }
+                            }
+                            else { contAudio.src=''; contAudio.style.display='none'; }
+                        } catch(e){ contAudio.src=''; contAudio.style.display='none'; }
+                    });
+                    appendCb.addEventListener('change', function(){
+                        if (!appendCb.checked){
+                            contInput.style.display='none';
+                            contAudio.style.display='none';
+                        } else {
+                            contInput.style.display='block';
+                            if (contAudio.src) contAudio.style.display='block';
+                        }
+                    });
+                    // Инициализация состояния input/preview в соответствии с чекбоксом
+                    if (!appendCb.checked){
+                        contInput.style.display='none';
+                        contAudio.style.display='none';
                     }
                     modelSelector.addEventListener('change', updateUI);
                     updateUI();
                 });
             </script>
     
-            <div class="group slider-group">
-                    <div>
-                        {{ slider_field('top_k', 'Top K', 0, 1000, 1, topk) }}
-                        {{ slider_field('duration', 'Duration', 1, 1000, 1, duration) }}
-                        {{ slider_field('cfg_coef', 'CFG', 1, 10, 0.1, cfg_coef) }}
-                        {{ slider_field('seed', 'Seed', -1, 99999999, 1, seed if seed is defined else -1) }}
+            <style>
+                .sliders-row{display:flex; flex-direction:column; gap:14px; align-items:stretch; padding:6px 2px 4px; margin-top:10px;}
+                .sliders-row > div{width:100%;}
+                .sliders-row .field{margin:0;}
+                .seed-mode-block .field{margin:0;}
+            </style>
+            <div id="sliders-row" class="sliders-row">
+                <div class="slider-item">{{ slider_field('top_k', 'Top K', 0, 250, 1, topk if topk <= 250 else 250) }}</div>
+                <div class="slider-item">{{ slider_field('duration', 'Duration', 1, 1000, 1, duration) }}</div>
+                <div class="slider-item">{{ slider_field('cfg_coef', 'CFG', 1, 10, 0.1, cfg_coef) }}</div>
+                <div class="slider-item">{{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp) }}</div>
+                <div class="slider-item">{{ slider_field('temperature', 'Temperature', 0.1, 2, 0.01, temperature if temperature <= 2 else 2) }}</div>
+                <div class="slider-item">{{ slider_field('seed', 'Seed', -1, 99999999, 1, seed if seed is defined else -1) }}</div>
+                <div class="slider-item seed-mode-block">
+                    <div class="field" style="gap:12px; align-items:center;">
+                        <label style="min-width:120px;" data-i18n="seed_mode">Seed Mode</label>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:4px; font-size:14px;">
+                                <input type="checkbox" id="auto-seed" checked>
+                                <span data-i18n="auto">Auto</span>
+                            </label>
+                            <button type="button" id="roll-seed" style="padding:4px 10px;" data-i18n="roll">Roll</button>
+                            <small id="seed-hint" style="opacity:.7; font-size:12px;">Auto = новый случайный seed каждый запуск</small>
+                        </div>
                     </div>
-
-                    <div>
-                        {{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp) }}
-                        {{ slider_field('temperature', 'Temperature', 0.1, 5, 0.01, temperature) }}
-                    </div>
+                </div>
             </div>
 
-            <div class="submit-container">
-                <textarea id="text" name="text" rows="6" placeholder="Введите подробный музыкальный промпт..." required="">{{ default_text }}</textarea>
-                <button type="button" class="submit-button" onclick="submitSliders()">Submit</button>
+            <div class="field" style="flex-direction:column; align-items:stretch; margin-top:14px; gap:6px; padding:8px; border:1px dashed #444; border-radius:6px;">
+                <label style="font-weight:600; opacity:.85;" data-i18n="advanced">Advanced (placeholders)</label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:14px; opacity:.6;">
+                    <input type="checkbox" id="mbd_checkbox" disabled>
+                    Multi-Band Diffusion (coming soon)
+                </label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <label for="stem_split_select" style="min-width:120px; font-size:14px; opacity:.6;" data-i18n="stem_split">Stem Split</label>
+                    <select id="stem_split_select" style="flex:1; padding:4px 6px;">
+                        <option value="" data-i18n="none">None</option>
+                        <option value="vocals">vocals</option>
+                        <option value="drums">drums</option>
+                        <option value="bass">bass</option>
+                        <option value="other">other</option>
+                        <option value="all">all</option>
+                    </select>
+                </div>
+                <small style="opacity:.5; font-size:11px; line-height:1.3;">Эти функции пока недоступны: параметры будут сохраняться в JSON со статусом not_implemented.</small>
+                <!-- Demucs arbitrary file panel relocated here -->
+                <div id="demucs-any-panel" style="margin-top:12px; padding:10px 12px; border:1px dashed #555; border-radius:6px; background:rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:8px;">
+                    <div style="font-weight:600; opacity:.85;" data-i18n="demucs_any">Demucs: Arbitrary File</div>
+                    <input type="file" id="demucs-any-input" accept="audio/*" style="display:block;">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <button id="demucs-any-run" disabled style="padding:6px 12px;" data-i18n="separate">Separate</button>
+                        <div id="demucs-any-status" style="font-size:12px; opacity:.7;"></div>
+                    </div>
+                    <div id="demucs-any-results" style="margin-top:4px;"></div>
+                </div>
+                </div>
+        </aside>
+        <!-- FROZEN SIDEBAR END -->
+        <main class="chat-area">
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="results-panels">
+                <div class="audio-detail third-box" id="audio-detail" style="margin-bottom:12px; display:flex; gap:18px; align-items:flex-start; height:500px;">
+                    <div class="audio-card-host" style="flex:1 1 auto; min-width:0;"></div>
+                    <div class="stems-side-panel" style="flex:0 0 420px; display:flex; flex-direction:column; gap:12px; min-height:100%;"></div>
+                </div>
             </div>
-    </div>
-
-    <div class="prompt-queue third-box"></div>
-    <div class="audio-list third-box"></div>   
+             <div id="chat-progress" style="display:none; font-size:13px; opacity:.75; padding:4px 2px 0 2px;"></div>
+             <div class="chat-input-bar">
+                <div class="submit-container" style="margin-top:0; width:100%;">
+                     <textarea id="text" name="text" rows="3" placeholder="Введите подробный музыкальный промпт... (Enter = отправить, Shift+Enter = новая строка)" required="">{{ default_text }}</textarea>
+                     <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap; width:100%;">
+                        <button type="button" class="submit-button" id="submit-btn" onclick="submitSliders()" data-i18n="submit">Submit</button>
+                        <label style="display:flex; align-items:center; gap:6px; font-size:13px; line-height:1.2; background:#202327; padding:6px 10px; border:1px solid #32363b; border-radius:10px;">
+                            <input type="checkbox" id="artist-enable" style="margin:0;">
+                            <span style="opacity:.85; font-weight:500;">Artist</span>
+                            <input type="text" id="artist-input" placeholder="имя артиста" style="min-width:160px; width:200px; font-size:13px; padding:6px 8px; border:1px solid #444; background:#1c1f23; border-radius:6px;" disabled>
+                        </label>
+                        <button type="button" id="clear-chat-btn" style="background:#d14848; padding:8px 14px; border-radius:4px;">Очистить чат</button>
+                     </div>
+                </div>
+            </div>
+        </main>
+     </div>
 
     <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script>
+        // Seed helpers (добавлено)
+        (function(){
+            const autoCb = document.getElementById('auto-seed');
+            const seedRange = document.getElementById('seed');
+            const seedNum = document.getElementById('seed-text');
+            const rollBtn = document.getElementById('roll-seed');
+            function setDisabled(dis){ seedRange.disabled = dis; seedNum.disabled = dis; }
+            function enterAuto(){ seedRange.value = -1; seedNum.value = -1; setDisabled(true); }
+            function leaveAuto(){ setDisabled(false); }
+            autoCb.addEventListener('change', ()=>{ autoCb.checked ? enterAuto() : leaveAuto(); });
+            rollBtn.addEventListener('click', ()=>{
+                if (autoCb.checked){ enterAuto(); return; }
+                const rnd = Math.floor(Math.random()*100000000);
+                seedRange.value = rnd; seedNum.value = rnd;
+            });
+            // Инициализация: если загрузился seed >=0, отключаем auto
+            try { if (parseInt(seedRange.value,10) >= 0){ autoCb.checked = false; leaveAuto(); } else { autoCb.checked = true; enterAuto(); } } catch(e){}
+            // Переопределяем submitSliders чтобы при авто режиме гарантированно отправлять -1
+            const originalSubmit = window.submitSliders;
+            window.submitSliders = function(){ if (autoCb.checked){ seedRange.value=-1; seedNum.value=-1; } originalSubmit(); };
+            // Флаг для main.js чтобы знать об авто режиме
+            window.__autoSeedEnabled = ()=> autoCb.checked;
+        })();
+    </script>
+    <script>
+        // Дополнительная обёртка для добавления сообщений в чат
+        (function(){
+            const chatBox = document.getElementById('chat-messages');
+            const LS_KEY='chat_history_v1';
+            function persist(){
+                try {
+                    const data = Array.from(chatBox.querySelectorAll('.chat-msg')).map(m=>({role:[...m.classList].filter(c=>c!=='chat-msg')[0]||'user', html:m.querySelector('.msg-inner')?.innerHTML||''}));
+                    localStorage.setItem(LS_KEY, JSON.stringify(data));
+                } catch(e){}
+            }
+            function restore(){
+                try { const raw = localStorage.getItem(LS_KEY); if(!raw) return; const arr=JSON.parse(raw); if(!Array.isArray(arr)) return; arr.forEach(it=>_add(it.role,it.html,false)); chatBox.scrollTop=chatBox.scrollHeight; } catch(e){}
+            }
+            function _add(role, html, doPersist=true){
+                if(!chatBox) return;
+                const wrap = document.createElement('div');
+                wrap.className = 'chat-msg ' + role;
+                wrap.innerHTML = '<div class="msg-inner">' + html + '</div>';
+                chatBox.appendChild(wrap);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                if(doPersist) persist();
+            }
+            function addChatMessage(role, html){ _add(role, html, true); }
+            window.addChatMessage = addChatMessage;
+            window.__chatPersist = persist;
+            window.removeChatByFile = function(file){
+                if(!file) return; const normalized = file.replace(/\\/g,'/'); let changed=false;
+                chatBox.querySelectorAll('.chat-audio-link').forEach(el=>{
+                    const f = (el.getAttribute('data-audio-file')||'').replace(/\\/g,'/');
+                    if(f === normalized || f.endsWith('/'+normalized.split('/').pop())){ const msg = el.closest('.chat-msg'); if(msg){ msg.remove(); changed=true; } }
+                });
+                if(changed) try{ persist(); }catch(e){}
+            };
+            restore();
+            // Миграция старых anchor ссылок в span
+            chatBox.querySelectorAll('.chat-msg a[href*="static/"]').forEach(a=>{
+                const file = a.getAttribute('href'); if(!file) return; const span=document.createElement('span'); span.className='chat-audio-link'; span.textContent=a.textContent; span.style.cssText='color:#6fa8ff; cursor:pointer; text-decoration:underline;'; span.setAttribute('data-audio-file', file); span.setAttribute('data-audio-json', file.replace(/\.[a-z0-9]+$/i, '.json')); a.replaceWith(span); persist();
+            });
+            // Делегирование клика по аудио ссылкам
+            chatBox.addEventListener('click', (e)=>{
+                const target = e.target.closest('.chat-audio-link');
+                if(!target) return;
+                const jsonPath = target.getAttribute('data-audio-json');
+                const audioFile = target.getAttribute('data-audio-file');
+                if(jsonPath && audioFile){
+                    fetch(jsonPath).then(r=>r.json()).then(j=>{ try{ renderDetail(j, audioFile); }catch(err){ console.warn('renderDetail from chat failed', err); } });
+                }
+            });
+            // Убираем отдельное пользовательское сообщение с промптом: будет показано вместе с ответом (аудио)
+            const prev = window.submitSliders;
+            window.submitSliders = function(){ prev(); };
+            // Отправка Enter без Shift
+            const ta = document.getElementById('text');
+            if(ta){
+                ta.addEventListener('keydown', (e)=>{
+                    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('submit-btn').click(); }
+                });
+            }
+            // Artist enable toggle
+            const artistEnable = document.getElementById('artist-enable');
+            const artistInput = document.getElementById('artist-input');
+            if (artistEnable && artistInput){
+                artistEnable.addEventListener('change', ()=>{ artistInput.disabled = !artistEnable.checked; if(!artistEnable.checked){ artistInput.value=''; } });
+            }
+            // Очистка чата с подтверждением и удалением всех аудио
+            const clearBtn = document.getElementById('clear-chat-btn');
+            if (clearBtn){
+                clearBtn.addEventListener('click', ()=>{
+                    showConfirmModal();
+                });
+            }
+            function showConfirmModal(){
+                let modal = document.getElementById('confirm-clear-modal');
+                if (!modal){
+                    modal = document.createElement('div');
+                    modal.id='confirm-clear-modal';
+                    modal.style.position='fixed'; modal.style.left='0'; modal.style.top='0'; modal.style.width='100%'; modal.style.height='100%'; modal.style.background='rgba(0,0,0,0.6)'; modal.style.display='flex'; modal.style.alignItems='center'; modal.style.justifyContent='center'; modal.style.zIndex='1000';
+                    modal.innerHTML = '<div style="background:#232527; padding:24px 26px; border-radius:10px; width:420px; max-width:90%; font-size:14px; line-height:1.5;">'+
+                        '<div style="font-weight:600; font-size:16px; margin-bottom:10px;">Подтверждение</div>'+
+                        '<div style="margin-bottom:16px;">Точно очистить чат? <br>Все песни и их стемы тоже будут удалены.</div>'+
+                        '<div style="display:flex; gap:12px; justify-content:flex-end;">'+
+                        '<button id="ccm-no" style="background:#444; padding:8px 14px; border:none; border-radius:4px; cursor:pointer;">Нет</button>'+
+                        '<button id="ccm-yes" style="background:#d14848; padding:8px 14px; border:none; border-radius:4px; cursor:pointer;">ДА</button>'+
+                        '</div>'+
+                        '</div>';
+                    document.body.appendChild(modal);
+                    modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+                    modal.querySelector('#ccm-no').addEventListener('click', closeModal);
+                    modal.querySelector('#ccm-yes').addEventListener('click', ()=>{ doClearAll(); });
+                }
+            }
+            function closeModal(){ const m=document.getElementById('confirm-clear-modal'); if(m) m.remove(); }
+            function doClearAll(){
+                fetch('/delete_all_audio', { method:'POST' })
+                    .then(r=>r.json())
+                    .then(()=>{
+                        // Чистим UI: чат, detail, локальное хранилище
+                        try{ localStorage.removeItem('chat_history_v1'); }catch(e){}
+                        const chatBox=document.getElementById('chat-messages'); if(chatBox) chatBox.innerHTML='';
+                        const detail=document.getElementById('audio-detail'); if(detail) detail.innerHTML='';
+                        closeModal();
+                    })
+                    .catch(()=>{ closeModal(); });
+            }
+        })();
+    </script>
+    <!-- Layout Mode script removed -->
+    </div>
 </body>
 </html>

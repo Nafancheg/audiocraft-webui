@@ -1,0 +1,20 @@
+#audio-detail{width:788.765625px; height:493px; max-width:2000px; padding:12px; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; order:0;}
+#gen-form-box{width:1400px; height:1575.48px; max-width:1400px; padding:0px; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; order:0;}
+[data-layout-id]{[data-layout-id="format-block"]{order:0;}
+[data-layout-id="samplerate-block"]{order:1;}
+[data-layout-id="ffmpeg-note"]{order:2;}
+[data-layout-id="audio-prompt"]{order:3;}
+[data-layout-id="continuation"]{order:4;}
+[data-layout-id="top_k"]{order:5;}
+[data-layout-id="duration"]{order:6;}
+[data-layout-id="cfg_coef"]{order:7;}
+[data-layout-id="seed"]{order:8;}
+[data-layout-id="seed_mode"]{order:9;}
+[data-layout-id="temperature"]{order:10;}
+[data-layout-id="top_p"]{order:11;}
+[data-layout-id="gen-form-box"]{order:12;}
+[data-layout-id="design-editor-box"]{order:13;}
+[data-layout-id="prompt-queue"]{order:0;}
+[data-layout-id="audio-detail"]{order:0;}
+[data-layout-id="audio-list"]{order:1;}}
+#modelSelector{width:300px; height:34px; padding:0px; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; order:0;}

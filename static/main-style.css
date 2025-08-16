@@ -32,13 +32,13 @@ body {
     background-color: var(--kitten);
     color: var(--cuttlefish);
     margin: 0;
-    padding: 0;
+    padding: 0 0 40px 0;
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
     min-height: 100vh;
     height: auto;
-    padding-top: 4px;
+    padding-top: 8px;
 }
 
 select {
@@ -86,19 +86,7 @@ textarea {
 .audio-item button.delete-audio:hover { opacity:1; background:#d44; }
 
 /* Убираем лишние внешние и внутренние отступы, только 50px сверху через .container */
-.third-box {
-    box-sizing: border-box;
-    padding: 0 48px 16px 48px; /* doubled horizontal padding (24 -> 48) */
-    border: 1px solid var(--border-color);
-    border-radius: 1em;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
-    background-color: var(--kitten);
-    min-width: 33vw;
-    margin: 0;
-    height: auto;
-    align-content: flex-start;
-    display: grid;
-}
+.third-box { box-sizing:border-box; width:85%; max-width:1400px; }
 
 /* (Reverted) Removed specialized gen-box, center-queue, results-box classes */
 
@@ -136,6 +124,8 @@ textarea {
     flex-grow: 1;
     width: 100%;
     border: 0px;
+    margin-top: 18px;
+    gap: 10px;
 }
 
 #text {
@@ -147,11 +137,20 @@ textarea {
 }
 
 .submit-button {
-    width: 20%;
+    display: inline-block;
+    width: 100%;
+    max-width: 320px;
     align-self: center;
-    border-color: var(--kitten);
-    background-color: var(--jellyfish);
-    border-radius: 20%;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    color: #fff;
+    background: #2d67f5;
+    border: 1px solid #1f4fb8;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
 }
 
 .submit-button:hover {
@@ -208,16 +207,31 @@ textarea {
 }
 
 .audio-list {
-    flex-basis: 30%;
-    max-height: 95vh;
-    height:90%;
+    width: 85%;
+    max-width: 1400px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding-right: 20px;
+    padding: 6px 10px 14px 10px;
 }
+
+#audio-detail {
+    width: 100%; /* растягиваем на всю доступную ширину контейнера */
+    max-width: 100%; /* без ограничения чтобы реально занять 100% */
+    min-height: 120px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 12px 16px 20px 16px;
+    margin-bottom:12px;
+    box-sizing: border-box;
+}
+
+.audio-list-row:hover { background: rgba(255,255,255,0.06) !important; }
 
 @keyframes fadeIn {
     0% {opacity: 0;}

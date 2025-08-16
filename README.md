@@ -1,32 +1,42 @@
 [![Discord](https://img.shields.io/discord/232596713892872193?logo=discord)](https://discord.gg/2JhHVh7CGu)
 
-# audiocraft-webui v2.0!
-Local web UI for Facebook's Audiocraft model: <https://github.com/facebookresearch/audiocraft>
+# audiocraft-webui (чатовый интерфейс)
+Локальный веб‑интерфейс для модели Audiocraft от Facebook: <https://github.com/facebookresearch/audiocraft>
 
 <img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/35aee0b5-8829-48ec-b850-0482b6ce1086" />
 
-## Features
+## Возможности (текущий чат‑ориентированный UI)
 
-- **Long Audio (chunked)**: Queue up long prompts; audio segments processed sequentially (practical GPU limits still apply).
-- **Processing Queue**: Add multiple prompts; they auto-run in FIFO order.
-- **Generation History**: Each audio file is stored with a paired JSON (parameters + prompt).
-- **Seed (reproducibility)**: Use -1 for random or set a positive integer to reproduce a result.
-- **Melody / Audio Prompt mode**: Supply a guiding melody (Melody model) to steer generation.
-- **Deletion**: Remove generated audio + its metadata directly from the UI (X button).
+- **Чат‑процесс**: Промпты и ответы (имена файлов-ссылки) в прокручиваемом чате с сохранением в localStorage.
+- **Одна активная карточка**: Всегда показывается только одна подробная карточка трека (без захламления) с параметрами и плеером.
+- **Кастомный аудиоплеер**: Единый тёмный плеер (play/pause, перемотка, loop, громкость, скачивание) вместо стандартного `<audio>`.
+- **Управление Seed**: Авто режим (-1) + ручной seed и кнопка Roll (в авто режиме сохраняем -1, сервер может вернуть фактический seed отдельно).
+- **Artist (опционально)**: Префикс артиста в имени файла (санитизирован) для брендинга.
+- **Детерминированные имена**: `Artist_Model_Seed_DDMMYYYY_HH_MM` (seed -1 опускается) и парный JSON.
+- **Выбор формата и частоты**: WAV / FLAC / экспериментальный MP3 + ресемплинг (original / 48k / 32k / 16k).
+- **Continuation (Append) режим**: Второй клип добавляется перед новым генератором (JSON хранит исходную длину и флаги).
+- **Audio Prompt (Melody)**: Референсный аудио‑пример при выборе модели `melody`.
+- **Demucs Stem Split**: Опциональное разделение (vocals / drums / bass / other / all) с прогрессом.
+- **Панель микшера стемов**: Play / solo / mute / громкость по стему, синхронное воспроизведение, сведение выбранных в WAV, ZIP (выбранные или все).
+- **Массовая очистка**: Диалог подтверждения для удаления всех треков, стемов и чата.
+- **Удаление**: Кнопка на карточке удаляет аудио, JSON, стемы и сообщения чата.
+- **База i18n**: Черновой словарь RU / EN для меток.
 
-## Install
+Старая очередь и список генераций убраны ради более чистого чат‑опыта (можно вернуть при необходимости через абстракцию очереди на бэкенде).
 
-If you'd like GPU acceleration and do not have torch installed, visit [PyTorch Installation Guide](https://pytorch.org/get-started/locally/) for instructions on installing GPU-enabled torch correctly.
+## Установка
 
-### Option 1: Manual Installation
-If you prefer manual installation, install dependencies using:
+Если нужна GPU‑акселерация и torch ещё не установлен, см. [PyTorch Installation Guide](https://pytorch.org/get-started/locally/).
+
+### Вариант 1: Ручная установка
+Установите зависимости:
 ```bash
 pip install -r requirements.txt
 ```
-(If you encounter errors with **audiocraft**, please refer to their [official documentation](https://github.com/facebookresearch/audiocraft)).
+(Если возникают ошибки с **audiocraft**, смотрите их [официальную документацию](https://github.com/facebookresearch/audiocraft)).
 
-### Option 2: Install Script (Automated)
-To automate installation and environment setup, use the provided script:
+### Вариант 2: Скрипт установки (автоматически)
+Для автоматизации подготовки окружения:
 - **Linux/macOS:**
   ```bash
   ./install.sh
@@ -35,20 +45,20 @@ To automate installation and environment setup, use the provided script:
   ```cmd
   install.bat
   ```
-This will check for **Python 3.10**, create a virtual environment (`venv`), and install all required dependencies automatically. If Conda is available, it can be used instead of venv.
+Скрипт проверит **Python 3.10**, создаст окружение (`venv`) и установит зависимости. Если есть Conda — может быть использована.
 
 ---
 
-## Run
+## Запуск
 
-### Option 1: Manual
-Start the web UI manually using:
+### Вариант 1: Ручной запуск
+Запустить интерфейс:
 ```bash
 python webui.py
 ```
 
-### Option 2: Run Script
-Alternatively, use the run script for easier execution:
+### Вариант 2: Скрипт запуска
+Используйте run‑скрипт:
 - **Linux/macOS:**
   ```bash
   ./run.sh
@@ -57,36 +67,42 @@ Alternatively, use the run script for easier execution:
   ```cmd
   run.bat
   ```
-This will automatically activate the appropriate environment (virtualenv or Conda) and start `webui.py`. Once the script is stopped, it ensures the environment is properly deactivated.
+Он активирует окружение (venv/Conda) и стартует `webui.py`. После остановки деактивирует среду.
 
 ---
 
-No need to manually download the checkpoints—pick a model from the dropdown; on first use it will auto-download via Audiocraft.
+Чекпойнты качать вручную не нужно — при первом использовании выбранная модель загрузится автоматически.
 
-To use **Melody / Audio Prompt** guidance choose the `melody` model; an upload input will appear for a short reference audio clip.
+Для **Melody / Audio Prompt** выберите модель `melody` — появится поле загрузки.
 
 ---
 
-## Notes
-- Generated files are saved in the `static/audio/` directory.
-- The currently active model remains loaded in memory by default. To unload it after each generation, launch with:
+## Примечания
+- Аудио сохраняются в `static/audio/`; стемы — `static/stems/<basename>/`.
+- К каждому файлу есть JSON (параметры, формат, SR, промпт, continuation, postprocess).
+- Модель держится в памяти. Чтобы выгружать после каждой генерации:
   ```bash
   python webui.py --unload-after-gen
   ```
-- The UI could use an improved design—contributors are welcome!
+- История чата хранится только локально (не на сервере). Очистка удаляет файлы.
+- Кастомный плеер минималистичен — PR с визуализациями приветствуется.
 
 ---
 
-## Parameters
+## Параметры (слайдеры и флаги)
 
-- **Top K**: Restricts candidate tokens. Lower = more deterministic, higher = more variety.
-- **Top P**: Nucleus sampling threshold (probability mass). ~0.7 is a common starting point.
-- **Duration**: Target length (seconds) per generation request.
-- **CFG (Classifier-Free Guidance)**: Strength of adherence to text. 3–5 typically balances fidelity and creativity.
-- **Temperature**: Randomness scaler. <1.0 = conservative, >1.0 = more exploratory.
-- **Seed**: -1 = random each run; any non-negative integer gives reproducible output.
-- **Model**: small / medium / large / melody (melody enables audio prompt input).
-- **Audio Prompt**: (Melody model only) A guiding reference (timbre / contour).
+- **Top K**: Ограничение числа кандидатов. Меньше — детерминированней, больше — разнообразнее.
+- **Top P**: Порог ядровой выборки (nucleus). ~0.7 типично.
+- **Duration**: Целевая длина (сек) новой части.
+- **CFG**: Насколько строго следовать тексту. 3–5 — баланс.
+- **Temperature**: Степень случайности. <1.0 сдержанно, >1.0 экспериментально.
+- **Seed**: -1 = случайный; >=0 воспроизводимо.
+- **Model**: small / medium / large / melody.
+- **Audio Prompt**: Референс для melody.
+- **Append continuation**: Склейка внешнего клипа перед новой генерацией.
+- **Stem Split**: Demucs разделение (при включении появляются стемы).
+- **Format / Sample Rate**: Формат контейнера и опциональный ресемпл (FLAC/MP3 требуют ffmpeg).
+- **Artist**: Префикс в имени файла.
 
 ---
 
@@ -112,7 +128,7 @@ To use **Melody / Audio Prompt** guidance choose the `melody` model; an upload i
 
 ---
 
-## Changelog
+## История изменений
 
 ### 2024-02-25
 - Core rewrite.
@@ -121,20 +137,38 @@ To use **Melody / Audio Prompt** guidance choose the `melody` model; an upload i
 - Removed deprecated parameters (`overlap`, `segments`).
 
 ### 2025-08-16
-- Added Seed slider (reproducibility, -1 random).
-- Added parameter normalization; unified key `seed`.
-- Added filename suffix `_seed<value>` when seed >= 0.
-- Added delete button to remove audio + metadata.
-- Fixed melody (audio prompt) local path loading.
+- Добавлен слайдер Seed (-1 авто / случайно).
+- Нормализация параметров; единый ключ `seed`.
+- Суффикс `_seed<value>` в имени если seed >=0.
+- Кнопка удаления аудио + JSON.
+- Исправлена загрузка локального Melody.
+
+### 2025-08-17
+- Крупный рефактор под чат (убран старый список и layout mode).
+- Persist‑чат (localStorage) с единым ответом (промпт + ссылка файла).
+- Кастомный плеер (loop, seek, volume, download).
+- Artist toggle + интеграция в схему имени.
+- Новая схема имени `Artist_Model_Seed_DDMMYYYY_HH_MM`.
+- Боковая панель стемов Demucs + плейсхолдер прогресса.
+- Микшер стемов (solo / mute / volume / mixdown / ZIP) в браузере.
+- Модалка массовой очистки.
+- Continuation UI + метаданные.
+- RU/EN словарь меток.
+- Авто seed + roll.
+- Фикс дубликатов карточек (строго одна).
+- Улучшено каскадное удаление (включая стемы и чат).
+- Удалён устаревший код очереди и layout.
 
 ---
-## Planned / Roadmap (short extract)
-See `TODO.md` for full details.
-- Format & sample rate selection.
-- Continuation (append) mode.
-- Stem split (Demucs) & multi-band diffusion post-process.
-- Loop mode (seamless crossfade loop creation).
-- MP3 / FLAC export.
+## План / Roadmap (снимок)
+Полный список см. `TODO.md`.
+- Multi-Band Diffusion (исследование + постпроцесс).
+- Loop mode (кроссфейд, предпросмотр).
+- Расширенный логгер, пресеты параметров.
+- Волновая форма / мини‑визуализация стемов.
+- Drag & drop (промпт и аудио).
+- REST / программный endpoint.
+- Светлая тема.
 
-## Contributing
-PRs for UI polish, performance optimizations, and new parameter support are welcome. Please keep changes focused and documented in the Changelog section.
+## Вклад
+PR приветствуются: улучшение UI, новые пост‑обработки, доступность, локализация. Делайте изменения точечными и добавляйте краткую запись в историю.

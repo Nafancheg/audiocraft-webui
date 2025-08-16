@@ -1,52 +1,50 @@
-# TODO / Roadmap
+# TODO / Дорожная карта
 
-## Iteration 1 (Format + Sample Rate + Audio Prompt rename)
-- [ ] UI: Add select `Format` (WAV | FLAC | MP3*) (default: WAV). Mark MP3 experimental.
-- [ ] UI: Add select `Sample Rate` (Original | 48000 | 32000 | 16000) (default: Original).
-- [ ] UI: Rename current Melody upload to `Audio Prompt` (id: `audio_prompt`).
-- [ ] Backend: Parse `format`, `sample_rate`, `audio_prompt` from submit payload.
-- [ ] Backend: Resample output if requested SR differs (torchaudio.functional.resample).
-- [ ] Backend: Write file:
-      - WAV: existing audio_write path.
-      - FLAC: torchaudio.save(..., format='FLAC').
-      - MP3: attempt (torchaudio.save or fallback to WAV with warning if unsupported).
-- [ ] Metadata JSON: add `format`, `sample_rate`, `audio_prompt` (filename or null).
-- [ ] Validation: duration (1..120), top_k (0..250), temperature (0.1..2.0), cfg_coef (0..10), sample_rate whitelist.
+## Итерация 1 (Формат + Частота + Переименование Audio Prompt)
+- [x] UI: селект `Format` (WAV | FLAC | MP3*) (по умолчанию WAV), MP3 помечен экспериментальным.
+- [x] UI: селект `Sample Rate` (Original | 48000 | 32000 | 16000).
+- [x] UI: переименовать Melody upload -> `Audio Prompt`.
+- [x] Backend: парсинг `format`, `sample_rate`, `audio_prompt`.
+- [x] Backend: ресемплинг при отличии SR.
+- [x] Backend: запись как WAV -> конверсия ffmpeg (FLAC / MP3, fallback WAV).
+- [x] JSON: поля `format`, `sample_rate`, `audio_prompt` + метаданные.
+- [x] Валидация: duration, top_k, temperature, cfg_coef, sample_rate whitelist.
 
-## Iteration 2 (Continuation Append Mode)
-- [ ] UI: Add Continuation upload input + checkbox `Append continuation`.
-- [ ] Backend: Load continuation audio (resample if needed).
-- [ ] Append Mode: concatenate original audio + generated segment (duration = new part only).
-- [ ] JSON: `continuation_source`, `continuation_original_seconds`.
-- [ ] SocketIO event: `continuation_applied` after concat.
+## Итерация 2 (Continuation / Append)
+- [x] UI: загрузка continuation + чекбокс.
+- [x] Backend: загрузка и ресемпл.
+- [x] Склейка: оригинал + новая часть.
+- [x] JSON: `continuation_source`, `continuation_original_seconds`, `append_mode`.
+- [x] SocketIO: `continuation_applied`.
 
-## Iteration 3 (Placeholders for Advanced Features)
-- [ ] UI: Checkbox `Multi-Band Diffusion` (disabled placeholder initially).
-- [ ] UI: Select `Stem Split` (disabled; options: vocals, drums, bass, other, all).
-- [ ] Backend: Accept flags; write to JSON with status `not_implemented`.
-- [ ] Structure: Post-processing queue scaffold.
+## Итерация 3 (Заглушки Advanced)
+- [x] UI: `Multi-Band Diffusion` (отключено).
+- [x] UI: `Stem Split` селект.
+- [x] Backend: принимает флаги, пишет в JSON статус `not_implemented`.
+- [x] Каркас очереди пост‑обработок.
 
-## Iteration 4 (Stem Split Implementation)
-- [ ] Dependency: integrate Demucs (document install).
-- [ ] Async stem separation task after generation.
-- [ ] Progress events: `stem_progress` (0-100).
-- [ ] Output path: `static/stems/<basename>/<stem>.wav`.
-- [ ] UI: Toggle to show/hide stems under card.
+## Итерация 4 (Реализация Stem Split)
+- [x] Demucs интеграция.
+- [x] Асинхронное разделение.
+- [x] Прогресс `stem_progress`.
+- [x] Путь `static/stems/<basename>/<stem>.wav`.
+- [x] Боковая панель стемов (кнопка исчезает без стемов).
 
-## Iteration 5 (Multi-Band Diffusion / Quality Pass)
-- [ ] Research available MBD model/checkpoint (VRAM requirements).
-- [ ] Add flag `mbd_strength`.
-- [ ] Async pass producing improved file (either replace or `_mbd.wav`).
-- [ ] JSON: `postprocess.mbd = { enabled, status, output }`.
+## Итерация 5 (Multi-Band Diffusion / Quality)
+- [ ] Исследовать модель / веса (требования VRAM).
+- [ ] Флаг `mbd_strength`.
+- [ ] Асинхронный проход (заменить или создать `_mbd.wav`).
+- [ ] JSON: `postprocess.mbd`.
 
-## Iteration 6 (UX Enhancements)
-- [ ] Button `Random Seed` (sets seed = -1 or random int).
-- [ ] Button `Rerun` on each card (re-enqueue same params).
-- [ ] Persist format, sample_rate, seed, model in `last_run.json`.
-- [ ] Filter panel (by seed, model, format).
-- [ ] Truncated prompt with expand/collapse.
+## Итерация 6 (UX улучшения)
+- [x] Кнопка `Roll` seed.
+- [x] Тоггл авто-seed.
+- [ ] Кнопка `Rerun` на карточке.
+- [ ] Сохранение последнего набора параметров (`last_run.json`).
+- [ ] Панель фильтров (seed / model / format / artist).
+- [ ] Сворачивание длинных промптов.
 
-## Iteration 7 (Loop Mode – seamless looping)
+## Итерация 7 (Loop Mode – бесшовный цикл)
 - [ ] UI: Checkbox `Loop mode` + numeric `loop_crossfade_ms` (e.g. 50–500ms).
 - [ ] Backend: If enabled, post-process generated audio to ensure seamless loop.
 - [ ] Backend Algorithm (v1):
@@ -61,29 +59,50 @@
 - [ ] Add small loop preview button in UI (play 3 cycle repeats).
 - [ ] Tests: verify RMS difference between boundary frames < threshold.
 
-## Refactor / Code Quality
-- [ ] Centralize parameter normalization in a util.
-- [ ] Extract file ops (upload/delete) to `utils/files.py`.
-- [ ] Add unit tests (sanitize_filename, param mapper, resample function).
-- [ ] Replace print with structured logger (levels, timestamps).
-- [ ] MAX_QUEUE limit + rejection message.
+## Рефактор / Качество
+- [ ] Централизовать нормализацию параметров.
+- [ ] Вынести файловые операции в `utils/files.py`.
+- [ ] Тесты: sanitize_filename, маппер параметров, ресемпл.
+- [ ] Логгер (уровни, таймстемпы).
+- [ ] Ограничение MAX_QUEUE.
+- [ ] Разделить `main.js` на модули (render, stems, chat, player).
 
-## Validation & Safety
-- [ ] Max upload size check (audio_prompt / continuation).
-- [ ] Graceful fallback if resample fails.
-- [ ] Sanitize stem & mbd output filenames.
+## Валидация и Безопасность
+- [ ] Лимит размера загрузки.
+- [ ] Мягкий fallback при ошибке ресемпла.
+- [ ] Санитайз имен стемов / mbd.
+- [ ] Ограничение длины промпта + предупреждение.
 
-## Documentation
-- [ ] README: update with new parameters & examples.
-- [ ] CHANGELOG: entries per iteration.
-- [ ] Table of formats vs dependencies (FFmpeg / libsndfile).
-- [ ] Add usage notes for continuation & stem split.
+## Документация
+- [x] README обновлён.
+- [ ] CHANGELOG по итерациям.
+- [ ] Таблица форматов vs зависимости.
+- [ ] Примечания по continuation & stem split.
+- [ ] Раздел про Artist и схему имени.
 
-## Optional Future
-- [ ] Drag & drop for prompt & audio.
-- [ ] Preset management (settings/presets/*.json).
-- [ ] REST endpoint `/generate` (JSON -> async job id).
-- [ ] Dark / light theme toggle.
+## Опционально (Future)
+- [ ] Drag & drop (промпт и аудио).
+- [ ] Пресеты (settings/presets/*.json).
+- [ ] REST `/generate`.
+- [ ] Переключение темы.
+- [ ] Визуализация волны (стемы + мастер).
+- [ ] Прогресс‑волна в реальном времени.
+
+## Итерация 8 (Chat UI & Плеер)
+- [x] Замена списка на чат.
+- [x] Сохранение истории в localStorage.
+- [x] Единое сообщение (промпт + файл).
+- [x] Одна активная карточка.
+- [x] Кастомный плеер.
+- [x] Префикс Artist.
+- [x] Массовая очистка.
+- [x] Микшер стемов (solo/mute/volume/mix/ZIP).
+- [x] Фикс дубликатов карточек.
+- [x] Скрытие кнопки стемов при их отсутствии.
+- [ ] Guard на повторный рендер того же файла.
+- [ ] Компактный режим чата.
+- [ ] Экспорт чата (.json / .txt).
+- [ ] Расширение i18n (полный RU перевод подсказок).
 
 ---
 Legend: `*` experimental feature.
