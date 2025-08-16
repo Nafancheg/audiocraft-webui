@@ -3,7 +3,7 @@
 # audiocraft-webui (чатовый интерфейс)
 Локальный веб‑интерфейс для модели Audiocraft от Facebook: <https://github.com/facebookresearch/audiocraft>
 
-<img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/35aee0b5-8829-48ec-b850-0482b6ce1086" />
+<img width="2470" height="976" alt="audiocraft-webui" src="https://github.com/user-attachments/assets/f3a686c1-36c7-49e6-bb8c-9b2bc3fda4ca" />
 
 ## Возможности (текущий чат‑ориентированный UI)
 
