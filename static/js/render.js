@@ -1,6 +1,19 @@
 import { buildStemsMixerUI } from './stems.js';
 import { attachCustomPlayer } from './player.js';
 
+// Local helper (previously in legacy main.js) to delete audio on server
+function deleteAudio(wavPath, cardEl){
+	fetch('/delete_audio', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ wav: wavPath }) })
+		.then(r=>r.json())
+		.then(j=>{
+			if(j.success){
+				try{ if(cardEl) cardEl.remove(); }catch(e){}
+				if(window.removeChatByFile) window.removeChatByFile(wavPath);
+			} else { console.error('Удаление не удалось', j.error); }
+		})
+		.catch(e=>console.error('Ошибка удаления', e));
+}
+
 export function renderDetail(json_data, filename){
 	const detail = document.getElementById('audio-detail');
 	if (!detail) return;
