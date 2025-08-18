@@ -22,9 +22,12 @@ function attachHandlers(){
       const html=`<div style="font-weight:500; margin-bottom:4px;">${promptText}</div>${safeFile?'<span class="chat-audio-link" data-audio-json="'+data.json_filename+'" data-audio-file="'+data.filename+'" style="color:#6fa8ff; cursor:pointer; text-decoration:underline;">'+safeFile+'</span>':''}`;
       window.addChatMessage('assistant', html);
     }
+    // Finish UI cleanup
+    const prog=document.getElementById('chat-progress'); if(prog){ prog.style.display='none'; prog.textContent=''; }
+    if(window.clearProgressMessage) window.clearProgressMessage();
+    window.__genInFlight=false; const btn=document.getElementById('submit-btn'); if(btn) btn.disabled=false;
   });
   socket.on('progress', d=>{ const pct=(d.progress*100||0).toFixed(1); const prog=document.getElementById('chat-progress'); if(prog){ prog.style.display='block'; prog.textContent='Генерация: '+pct+'%'; } if(window.onGenerationProgress) window.onGenerationProgress(pct); });
-  socket.on('on_finish_audio', ()=>{ const prog=document.getElementById('chat-progress'); if(prog){ prog.style.display='none'; prog.textContent=''; } if(window.clearProgressMessage) window.clearProgressMessage(); });
   socket.on('update_seed', d=>{ try { if(window.__autoSeedEnabled && window.__autoSeedEnabled()) return; const s=d.seed; const r=document.getElementById('seed'); const n=document.getElementById('seed-text'); if(r&&n&&typeof s==='number'){ r.value=s; n.value=s; } } catch(e){} });
   socket.on('seed_updated', d=>{ const seedInput=document.getElementById('seed'); if(seedInput && d && typeof d.seed!=='undefined') seedInput.value=d.seed; });
   socket.on('generation_progress', data=>{ if(window.onGenerationProgress) window.onGenerationProgress(data.step, data.total, data.message); });
@@ -33,6 +36,7 @@ function attachHandlers(){
 }
 
 export function submitSliders(){
+  if(window.__genInFlight) return; // guard
   const textEl=document.getElementById('text');
   const prompt=(textEl && textEl.value)||'';
   if(!prompt.trim()){ console.warn('Пустой промпт'); return; }
@@ -63,9 +67,10 @@ export function submitSliders(){
     const old=document.getElementById('analysis-wait-msg'); if(old) old.remove();
     const chatBox=document.getElementById('chat-messages'); if(chatBox){ const wrap=document.createElement('div'); wrap.className='chat-msg system'; wrap.id='analysis-wait-msg'; wrap.innerHTML='<div class="msg-inner">Ожидайте: идёт анализ аудио...</div>'; chatBox.appendChild(wrap); chatBox.scrollTop=chatBox.scrollHeight; window.__analysisWaitActive=true; }
   }
+  window.__genInFlight=true; const btn=document.getElementById('submit-btn'); if(btn) btn.disabled=true;
   const payload={ values:slidersData, prompt, model, format:outFormat, sample_rate:outSampleRate, appendContinuation:!!contSrc, continuationUrl:contSrc, mbd:mbdEnabled, mbd_strength:mbdStrength, stem_split: (stemSel?stemSel.value:''), artist:artistName };
   if(isMelody) payload.audioPromptUrl=audioSrc; else if(audioSrc && model!=='melody') payload.audioPromptUrl=audioSrc; // keep consistency
-  try{ initSocket().emit('submit_sliders', payload); }catch(e){ console.error('submit emit failed', e); }
+  try{ initSocket().emit('submit_sliders', payload); }catch(e){ console.error('submit emit failed', e); window.__genInFlight=false; if(btn) btn.disabled=false; }
 }
 
 function bindSubmit(){ const btn=document.getElementById('submit-btn'); if(btn){ btn.addEventListener('click', submitSliders); }
