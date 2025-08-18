@@ -171,6 +171,16 @@ def generate_audio(socketio, model_type, prompt, audio_gen_params, melody_data, 
     # Формируем только допустимые параметры генерации
     allowed_gen_keys = { 'top_k', 'top_p', 'temperature', 'duration', 'cfg_coef' }
     gen_params = {k: v for k, v in audio_gen_params.items() if k in allowed_gen_keys}
+    # Взаимоисключение: если задан top_p > 0, игнорируем top_k; иначе если top_p == 0 или отсутствует, используем top_k
+    try:
+        tp = float(gen_params.get('top_p', 0) or 0)
+    except Exception:
+        tp = 0
+    if tp > 0:
+        gen_params.pop('top_k', None)
+    else:
+        # Если top_p не используется, убираем его чтобы не передавать 0 в модель (иногда это даёт деградацию)
+        gen_params.pop('top_p', None)
 
     if not MODEL or MODEL.name != f"facebook/musicgen-{model_type}":
         load_model(model_type, socketio)

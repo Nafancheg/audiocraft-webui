@@ -504,7 +504,10 @@
         </main>
      </div>
 
+    <script type="module" src="{{ url_for('static', filename='js/stems.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/render.js') }}"></script>
     <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules-init.js') }}"></script>
     <script>
         // Взаимное исключение top_k / top_p: если top_p > 0, блокируем top_k
         (function(){
