@@ -104,10 +104,9 @@ function submitSliders() {
     var contAudio = document.getElementById('continuation-preview');
     var continuationSrc = (appendCb && appendCb.checked && contAudio && contAudio.src) ? contAudio.src : null;
     var mbd = document.getElementById('mbd_checkbox');
-    var mbdStrengthEl = document.getElementById('mbd_strength');
     var stemSel = document.getElementById('stem_split_select');
-    var mbdEnabled = mbd ? !!mbd.checked : false;
-    var mbdStrength = (mbdEnabled && mbdStrengthEl) ? parseFloat(mbdStrengthEl.value) : null;
+    var mbdEnabled = mbd? !!mbd.checked : false;
+    var mbdStrength = null;
     // Удаляем предыдущие карточки (на случай если что-то осталось)
     (function(){
         const detail = document.getElementById('audio-detail');
@@ -126,7 +125,7 @@ function submitSliders() {
             slidersData[slider.id] = slider.value;
         });
         try {
-            socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, mbd_strength: mbdStrength, stem_split: stemValue, artist: artistName});
+            socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
         } catch(e){ console.error('Emit submit_sliders failed', e); }
         return;
     }
@@ -152,7 +151,7 @@ function submitSliders() {
         }
     } catch(e){ console.warn('analysis wait msg failed', e); }
     try {
-    socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, mbd_strength: mbdStrength, stem_split: stemValue, artist: artistName});
+    socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
     } catch(e){ console.error('Emit submit_sliders (melody) failed', e); }
 }
 
@@ -194,27 +193,7 @@ socket.on('continuation_applied', function(data){
 socket.on('postprocess_queued', function(data){ console.log('Postprocess queued', data); });
 socket.on('postprocess_progress', function(data){ console.log('Postprocess progress', data); });
 socket.on('postprocess_done', function(data){ console.log('Postprocess done', data); });
-// MBD progress
-socket.on('mbd_progress', function(data){
-    if(!data) return;
-    const detail = document.getElementById('audio-detail'); if(!detail) return;
-    const card = detail.querySelector('.audio-item'); if(!card) return;
-    let barWrap = card.querySelector('.mbd-progress');
-    if(!barWrap){
-        barWrap = document.createElement('div');
-        barWrap.className='mbd-progress';
-        barWrap.style.cssText='margin:6px 0 4px; background:#262a30; border:1px solid #333; height:12px; border-radius:6px; position:relative; overflow:hidden;';
-        const inner = document.createElement('div'); inner.className='mbd-progress-inner'; inner.style.cssText='position:absolute; left:0; top:0; height:100%; width:0%; background:linear-gradient(90deg,#5fd4ff,#9f6bff); transition:width .2s;';
-        barWrap.appendChild(inner);
-        const label = document.createElement('div'); label.className='mbd-progress-label'; label.style.cssText='font-size:11px; opacity:.75; margin-top:2px;';
-        label.textContent='MBD 0%';
-        card.appendChild(barWrap); card.appendChild(label);
-    }
-    const inner = barWrap.querySelector('.mbd-progress-inner');
-    if(inner){ inner.style.width=((data.progress||0)*100).toFixed(1)+'%'; }
-    const lbl = card.querySelector('.mbd-progress-label'); if(lbl) lbl.textContent = 'MBD '+((data.progress||0)*100).toFixed(0)+'%';
-    if(data.progress>=1){ setTimeout(()=>{ try{ barWrap.remove(); if(lbl) lbl.remove(); }catch(_){} }, 1200); }
-});
+// mbd_progress handler удалён (фича отключена)
 // stem_progress handled in stems.js now
 
 // renderDetail moved to render.js module

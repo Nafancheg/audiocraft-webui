@@ -64,7 +64,13 @@ export function renderDetail(json_data, filename){
 		if (/^continuation_/.test(key) || key==='append_mode') continue;
 		if (key==='format_requested' && json_data.parameters['format']===val) continue;
 		const p=document.createElement('div'); p.className='audio-item-text';
-		if (['seed','cfg_seed','sid'].includes(key)){ seedValue=val; p.textContent=`Seed: ${val}`; } else { p.textContent=`${key}: ${val}`; }
+		if (key==='stem_split' && val && typeof val==='object'){
+			p.textContent = `stem_split: ${val.requested || ''}`;
+		}else if (['seed','cfg_seed','sid'].includes(key)){
+			seedValue=val; p.textContent=`Seed: ${val}`;
+		}else{
+			p.textContent=`${key}: ${val}`;
+		}
 		paramsWrap.appendChild(p);
 	}
 	if (json_data.parameters.append_mode){
@@ -114,7 +120,7 @@ export function renderDetail(json_data, filename){
 						sample_rate: (params.sample_rate===undefined? 'original': params.sample_rate),
 						appendContinuation: !!params.append_mode && !!params.continuation_source,
 						continuationUrl: params.append_mode? params.continuation_source: null,
-						mbd: (params.multi_band_diffusion && params.multi_band_diffusion.requested) || false,
+						// mbd отключён
 						stem_split: (params.stem_split && params.stem_split.requested) || '',
 						artist: params.artist || null
 					};
@@ -149,6 +155,7 @@ export function renderDetail(json_data, filename){
 	card.appendChild(paramsWrap);
 	try { if (json_data.postprocess && Array.isArray(json_data.postprocess.tasks)){ const stemTask=json_data.postprocess.tasks.find(t=>t.type==='stem_split' && t.stems && t.stems.length); if (stemTask){ buildStemsMixerUI(card, json_data.prompt, stemTask.stems); } } } catch(e){}
 	host.appendChild(card);
+	// MBD прогресс отключён — отложенные данные игнорируются
 }
 
 // expose globally for legacy inline scripts

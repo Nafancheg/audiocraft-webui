@@ -4,6 +4,7 @@ import logging, os, queue, threading, json, secrets, warnings, shutil, subproces
 import torchaudio
 from urllib.parse import urlparse, unquote
 from mechanisms.generator_backend import generate_audio
+from mechanisms.mbd_runner import process_with_mbd, is_available as mbd_is_available
 import torchaudio.functional as F
 
 app = Flask(__name__)
@@ -33,11 +34,10 @@ def worker_process_queue():
                     with open(json_filename, 'r', encoding='utf-8') as jf:
                         meta = json.load(jf)
                     params = meta.get('parameters', {})
-                    mbd_req = params.get('multi_band_diffusion', {}).get('requested')
+                    mbd_req = False  # MBD отключён
                     stem_req = params.get('stem_split', {}).get('requested')
                     tasks = []
-                    if mbd_req:
-                        tasks.append({'type': 'mbd', 'status': 'queued'})
+                    # if mbd_req: ... (удалено)
                     if stem_req:
                         tasks.append({'type': 'stem_split', 'status': 'queued'})
                     if tasks:
@@ -206,34 +206,108 @@ def _run_stem_split(meta, json_path, task, socketio):
         task['error'] = str(e)
 
 def _run_mbd(meta, json_path, task, socketio):
-    """Placeholder Multi-Band Diffusion postprocess with fake progressive updates.
-    Replaces/creates *_mbd.wav and updates metadata. Real implementation should be plugged here."""
+    """Simplified Multi-Band Diffusion placeholder.
+
+    Instead of a real diffusion refinement we apply a lightweight spectral smoothing
+    (low-pass blend) controlled by `strength` and write *_mbd.wav. Metadata is updated
+    so later a true implementation can drop in without changing front-end contracts.
+    """
+    start_t = time.time()
     try:
         base_no_ext = os.path.splitext(json_path)[0]
-        # locate original audio
+        # 1) Locate paired audio
         audio_file = None
-        for ext in ('.wav','.flac','.mp3'):
+        for ext in ('.wav', '.flac', '.mp3'):
             cand = base_no_ext + ext
             if os.path.exists(cand):
-                audio_file = cand; break
+                audio_file = cand
+                break
         if not audio_file:
-            task['status'] = 'error'; task['error']='audio_missing'; return
-        # Simulate steps
-        strength = meta.get('parameters',{}).get('multi_band_diffusion',{}).get('strength',0.5)
-        total_steps = 20
-        out_path = base_no_ext + '_mbd.wav'
-        # Just copy original as placeholder
+            task['status'] = 'error'; task['error'] = 'audio_missing'; return
+        strength = meta.get('parameters', {}).get('multi_band_diffusion', {}).get('strength')
+        if strength is None:
+            strength = 0.5
         try:
-            shutil.copyfile(audio_file, out_path)
-        except Exception as ce:
-            task['status']='error'; task['error']=f'copy_fail:{ce}'; return
-        for i in range(total_steps+1):
-            socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': i/total_steps, 'strength': strength})
-            time.sleep(0.05)
-        task['status']='done'
-        task['output']= out_path.replace('\\','/')
+            strength = float(strength)
+        except Exception:
+            strength = 0.5
+        strength = max(0.0, min(1.0, strength))
+        out_path = base_no_ext + '_mbd.wav'
+        # 2) Load waveform
+        try:
+            waveform, sr = torchaudio.load(audio_file)
+        except Exception as e:
+            task['status'] = 'error'; task['error'] = f'load_failed:{e}'
+            return
+        socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': 0.05, 'strength': strength})
+        # 3) Attempt real MBD refinement if available, else fallback to low-pass blend
+        processed = None
+        used_impl = 'pseudo_lowpass_blend'
+        if mbd_is_available():
+            try:
+                def prog(p):
+                    socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': min(max(float(p), 0.0), 1.0), 'strength': strength})
+                mbd_out = process_with_mbd(waveform, sr, strength, prog)
+                if mbd_out is not None:
+                    processed = mbd_out
+                    used_impl = 'real_mbd'
+            except RuntimeError as re:
+                if 'out of memory' in str(re).lower():
+                    task['warning'] = 'mbd_oom_fallback'
+                else:
+                    task['warning'] = f'mbd_runtime:{re}'
+            except Exception as e:
+                task['warning'] = f'mbd_failed:{e}'
+        if processed is None:
+            try:
+                cutoff = max(1000, int(sr * (0.25 + 0.5 * (1 - strength))))
+                smoothed = F.lowpass_biquad(waveform, sr, cutoff_freq=cutoff)
+                processed = (1 - strength) * waveform + strength * smoothed
+                peak = processed.abs().max().item() if processed.numel() else 0
+                if peak > 1.0:
+                    processed = processed / peak
+            except Exception as e:
+                processed = waveform
+                task['warning'] = ((task.get('warning') + '; ') if task.get('warning') else '') + f'fallback_filter_failed:{e}'
+            socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': 0.6, 'strength': strength})
+        else:
+            socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': 0.92, 'strength': strength})
+        # 4) Save output wav
+        try:
+            torchaudio.save(out_path, processed, sr)
+        except Exception as e:
+            # Fallback copy if save via torchaudio failed
+            try:
+                shutil.copyfile(audio_file, out_path)
+            except Exception as ce:
+                task['status'] = 'error'; task['error'] = f'save_failed:{e}|copy_fail:{ce}'
+                return
+            task['warning'] = f'save_reverted_copy:{e}'
+        socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': 0.9, 'strength': strength})
+        # 5) Update metadata structure
+        pp = meta.setdefault('postprocess', {})
+        mbd_block = pp.get('mbd', {})
+        mbd_block.update({
+            'output': out_path.replace('\\', '/'),
+            'strength': strength,
+            'status': 'done',
+            'impl': used_impl,
+            'duration_sec': float(processed.shape[-1] / sr) if processed.shape[-1] else None,
+            'time_sec': round(time.time() - start_t, 3)
+        })
+        pp['mbd'] = mbd_block
+        # Mirror task output
+        task['status'] = 'done'
+        task['output'] = out_path.replace('\\', '/')
+        # Persist updated JSON immediately (so frontend can poll if desired)
+        try:
+            with open(json_path, 'w', encoding='utf-8') as jf:
+                json.dump(meta, jf, indent=4)
+        except Exception as e:
+            task['warning'] = (task.get('warning') + '; ' if task.get('warning') else '') + f'meta_write_failed:{e}'
+        socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': 1.0, 'strength': strength})
     except Exception as e:
-        task['status']='error'; task['error']=str(e)
+        task['status'] = 'error'; task['error'] = str(e)
 
 def worker_postprocess():
     while True:
@@ -258,11 +332,7 @@ def worker_postprocess():
                         with open(json_path, 'w', encoding='utf-8') as jf:
                             json.dump(meta, jf, indent=4)
                         _run_stem_split(meta, json_path, t, socketio)
-                    elif t['type'] == 'mbd':
-                        t['status'] = 'running'
-                        with open(json_path, 'w', encoding='utf-8') as jf:
-                            json.dump(meta, jf, indent=4)
-                        _run_mbd(meta, json_path, t, socketio)
+                    # mbd ветка удалена (фича отключена)
                     else:
                         for p in range(0,101,25):
                             socketio.emit('postprocess_progress', {'prompt': job.get('prompt'), 'progress': p/100.0, 'task': t['type']})
@@ -408,6 +478,119 @@ def _validate_numeric(converted):
         converted['cfg_coef'] = max(0.0, min(10.0, float(converted['cfg_coef'])))
     return converted
 
+# --- Авто-тюн параметров (temperature, cfg_coef, duration) в зависимости от top_k / top_p и модели ---
+_AT_DEFAULTS = {
+    'temperature': 1.2,
+    'cfg_coef': 4.0,
+    'duration': 30,
+    'top_k': 250,
+    'top_p': 0.67
+}
+
+def _auto_tune(model_type: str, params: dict):
+    """Возвращает структуру с изменениями и при необходимости модифицирует params.
+
+    Принцип:
+    - НЕ трогаем параметры если пользователь их уже изменил от дефолта (считаем что он осознанно задал).
+    - Анализируем текущие top_p если > 0, иначе top_k.
+    - На основе диапазонов определяем пресет и подменяем только значения оставшиеся равными дефолтам.
+    - Фиксируем что поменяли в params['auto_tune'].
+    """
+    try:
+        mt = (model_type or '').lower()
+        top_p_val = float(params.get('top_p', 0) or 0)
+        top_k_val = int(params.get('top_k', 0) or 0)
+        temperature = float(params.get('temperature', _AT_DEFAULTS['temperature']))
+        cfg_coef = float(params.get('cfg_coef', _AT_DEFAULTS['cfg_coef']))
+        duration = int(params.get('duration', _AT_DEFAULTS['duration']))
+    except Exception:
+        return {'applied': False, 'reason': 'parse_error'}
+
+    # Определяем что пользователь уже явно менял (отличается от дефолта > небольшого eps)
+    def _is_default(name, current):
+        base = _AT_DEFAULTS[name]
+        if isinstance(base, float):
+            return abs(current - base) < 1e-6
+        return current == base
+
+    user_locked = {
+        'temperature': not _is_default('temperature', temperature),
+        'cfg_coef': not _is_default('cfg_coef', cfg_coef),
+        'duration': not _is_default('duration', duration)
+    }
+
+    # Категоризация интервала сложности / разнообразия
+    # Приоритет top_p если > 0 (из-за взаимного исключения логики генератора)
+    diversity_metric = None
+    diversity_source = None
+    if top_p_val > 0:
+        diversity_metric = top_p_val
+        diversity_source = 'top_p'
+    else:
+        # Нормализуем top_k в [0..1] относительно макс 250
+        diversity_metric = min(1.0, max(0.0, top_k_val / 250.0 if top_k_val else 0.0))
+        diversity_source = 'top_k'
+
+    # Диапазоны: low (<0.25), mid (0.25-0.75), high (>0.75)
+    if diversity_metric <= 0.25:
+        band = 'low'
+    elif diversity_metric <= 0.75:
+        band = 'mid'
+    else:
+        band = 'high'
+
+    # Таблица целевых значений (если параметр не user_locked)
+    # Значения подобраны эвристически для плавности.
+    table = {
+        'small': {
+            'low':  {'temperature': 1.25, 'cfg_coef': 3.2, 'duration_cap': 35},
+            'mid':  {'temperature': 1.2,  'cfg_coef': 4.0, 'duration_cap': 30},
+            'high': {'temperature': 1.05, 'cfg_coef': 3.5, 'duration_cap': 20},
+        },
+        'medium': {
+            'low':  {'temperature': 1.18, 'cfg_coef': 3.3, 'duration_cap': 40},
+            'mid':  {'temperature': 1.15, 'cfg_coef': 3.8, 'duration_cap': 30},
+            'high': {'temperature': 1.0,  'cfg_coef': 3.4, 'duration_cap': 25},
+        },
+        'large': {
+            'low':  {'temperature': 1.12, 'cfg_coef': 3.2, 'duration_cap': 45},
+            'mid':  {'temperature': 1.05, 'cfg_coef': 3.6, 'duration_cap': 30},
+            'high': {'temperature': 0.95, 'cfg_coef': 3.2, 'duration_cap': 25},
+        }
+    }
+    # Fallback если неизвестная модель
+    model_key = 'large' if 'large' in mt else 'medium' if 'medium' in mt else 'small'
+    preset = table[model_key][band]
+
+    changes = {}
+    if not user_locked['temperature']:
+        new_temp = preset['temperature']
+        if abs(new_temp - temperature) > 1e-6:
+            params['temperature'] = new_temp
+            changes['temperature'] = {'old': temperature, 'new': new_temp}
+    if not user_locked['cfg_coef']:
+        new_cfg = preset['cfg_coef']
+        if abs(new_cfg - cfg_coef) > 1e-6:
+            params['cfg_coef'] = new_cfg
+            changes['cfg_coef'] = {'old': cfg_coef, 'new': new_cfg}
+    if not user_locked['duration']:
+        cap = preset['duration_cap']
+        if duration > cap:
+            params['duration'] = cap
+            changes['duration'] = {'old': duration, 'new': cap, 'cap_reason': 'diversity_'+band}
+
+    result = {
+        'applied': bool(changes),
+        'band': band,
+        'source': diversity_source,
+        'diversity_metric': round(diversity_metric, 4),
+        'model_bucket': model_key,
+        'changes': changes,
+        'user_locked': user_locked
+    }
+    params['auto_tune'] = result
+    return result
+
 @socketio.on('submit_sliders')
 def handle_submit_sliders(json):
     slider_data = json['values']
@@ -512,25 +695,28 @@ def handle_submit_sliders(json):
     else:
         slider_data['continuation_source'] = None
 
-    # Placeholders (Iteration 3)
+    # Inline MBD decode (опционально) — если mbd=true, просто проставим флаг; обработка в генераторе
     mbd_flag = bool(json.get('mbd'))
-    mbd_strength = json.get('mbd_strength')
-    try:
-        if mbd_strength is not None:
-            mbd_strength = max(0.0, min(1.0, float(mbd_strength)))
-    except:
-        mbd_strength = None
     stem_split = json.get('stem_split') or ''
     slider_data['multi_band_diffusion'] = {
         'requested': mbd_flag,
-        'strength': mbd_strength,
-        'status': 'not_implemented'
+        'status': 'inline'
     }
     if stem_split:
         slider_data['stem_split'] = {
             'requested': stem_split,
             'status': 'not_implemented'
         }
+
+    # Авто-тюн параметров (после парсинга всех входных полей, до сохранения и постановки в очередь)
+    if bool(json.get('auto_tune', True)):
+        try:
+            _auto_tune(model_type, slider_data)
+        except Exception as e:
+            # Не прерываем генерацию из-за ошибки авто-тюна
+            slider_data['auto_tune_error'] = str(e)
+    else:
+        slider_data['auto_tune'] = {'applied': False, 'disabled': True}
 
     if artist_name:
         slider_data['artist'] = artist_name

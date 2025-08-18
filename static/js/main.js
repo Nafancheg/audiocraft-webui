@@ -31,8 +31,14 @@ function attachHandlers(){
   socket.on('seed_updated', d=>{ const seedInput=document.getElementById('seed'); if(seedInput && d && typeof d.seed!=='undefined') seedInput.value=d.seed; });
   socket.on('generation_progress', data=>{ if(!window.onGenerationProgress) return; if(data && typeof data.step==='number' && typeof data.total==='number' && data.total>0){ const pct=((data.step/data.total)*100).toFixed(1); window.onGenerationProgress(pct); } else if(data && typeof data.progress==='number'){ window.onGenerationProgress((data.progress*100).toFixed(1)); } });
   socket.on('generation_finished', data=>{ if(window.clearProgressMessage) window.clearProgressMessage(); if(data && data.meta && data.meta.filename){ if(window.addChatMessage){ window.addChatMessage({ role:'user', content:'(Авто) Сгенерировано: '+(data.meta.prompt||''), audio_file:data.meta.filename, seed:data.meta.seed }); } if(window.renderDetail){ window.renderDetail(data.meta, data.meta.filename); } } });
-  socket.on('mbd_progress', data=>{ if(!data) return; const detail=document.getElementById('audio-detail'); if(!detail) return; const card=detail.querySelector('.audio-item'); if(!card) return; let barWrap=card.querySelector('.mbd-progress'); if(!barWrap){ barWrap=document.createElement('div'); barWrap.className='mbd-progress'; barWrap.style.cssText='margin:6px 0 4px; background:#262a30; border:1px solid #333; height:12px; border-radius:6px; position:relative; overflow:hidden;'; const inner=document.createElement('div'); inner.className='mbd-progress-inner'; inner.style.cssText='position:absolute; left:0; top:0; height:100%; width:0%; background:linear-gradient(90deg,#5fd4ff,#9f6bff); transition:width .2s;'; barWrap.appendChild(inner); const label=document.createElement('div'); label.className='mbd-progress-label'; label.style.cssText='font-size:11px; opacity:.75; margin-top:2px;'; label.textContent='MBD 0%'; card.appendChild(barWrap); card.appendChild(label); } const inner=barWrap.querySelector('.mbd-progress-inner'); if(inner) inner.style.width=((data.progress||0)*100).toFixed(1)+'%'; const lbl=card.querySelector('.mbd-progress-label'); if(lbl) lbl.textContent='MBD '+((data.progress||0)*100).toFixed(0)+'%'; if(data.progress>=1){ setTimeout(()=>{ try{ barWrap.remove(); const l=card.querySelector('.mbd-progress-label'); if(l) l.remove(); }catch(_){} }, 1200); }});
+  socket.on('postprocess_queued', data=>{
+    // MBD отключён: оставляем обработчик на будущее (stems и др. задачи могут использовать событие)
+    // Никаких действий сейчас не требуется
+  });
+  // socket.on('mbd_progress', ...) удалён (функция отключена)
 }
+
+// applyMbdProgressToCard / mbd прогресс бар удалены (фича отключена)
 
 export function submitSliders(){
   if(window.__genInFlight) return; // guard
@@ -54,10 +60,11 @@ export function submitSliders(){
   const contAudio=document.getElementById('continuation-preview');
   const contSrc=(appendCb && appendCb.checked && contAudio && contAudio.src)?contAudio.src:null;
   const mbd=document.getElementById('mbd_checkbox');
-  const mbdStrengthEl=document.getElementById('mbd_strength');
   const stemSel=document.getElementById('stem_split_select');
-  const mbdEnabled=mbd?!!mbd.checked:false;
-  const mbdStrength=(mbdEnabled && mbdStrengthEl)?parseFloat(mbdStrengthEl.value):null;
+  const mbdEnabled=mbd?!!mbd.checked:false; // strength не используем
+  const mbdStrength=null;
+  const autoTuneCb=document.getElementById('auto_tune_checkbox');
+  const autoTuneEnabled=autoTuneCb?!!autoTuneCb.checked:true;
   const slidersData={};
   document.querySelectorAll('input[type="range"]').forEach(sl=>{ slidersData[sl.id]=sl.value; });
   // Melody special handling
@@ -69,7 +76,7 @@ export function submitSliders(){
   window.__genInFlight=true; const btn=document.getElementById('submit-btn'); if(btn) btn.disabled=true;
   // Показать системное сообщение прогресса сразу (0%), если нет анализа
   if(!isMelody && window.onGenerationProgress){ window.onGenerationProgress('0.0'); }
-  const payload={ values:slidersData, prompt, model, format:outFormat, sample_rate:outSampleRate, appendContinuation:!!contSrc, continuationUrl:contSrc, mbd:mbdEnabled, mbd_strength:mbdStrength, stem_split: (stemSel?stemSel.value:''), artist:artistName };
+  const payload={ values:slidersData, prompt, model, format:outFormat, sample_rate:outSampleRate, appendContinuation:!!contSrc, continuationUrl:contSrc, mbd:mbdEnabled, stem_split: (stemSel?stemSel.value:''), artist:artistName, auto_tune:autoTuneEnabled };
   if(isMelody) payload.audioPromptUrl=audioSrc; else if(audioSrc && model!=='melody') payload.audioPromptUrl=audioSrc; // keep consistency
   try{ initSocket().emit('submit_sliders', payload); }catch(e){ console.error('submit emit failed', e); window.__genInFlight=false; if(btn) btn.disabled=false; }
 }

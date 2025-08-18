@@ -415,6 +415,11 @@
                 <div class="slider-item">{{ slider_field('top_p', 'Top-Probability', 0, 1, 0.01, topp) }}</div>
                 <div class="slider-item">{{ slider_field('temperature', 'Temperature', 0.1, 2, 0.01, temperature if temperature <= 2 else 2) }}</div>
                 <div class="slider-item">{{ slider_field('seed', 'Seed', -1, 99999999, 1, seed if seed is defined else -1) }}</div>
+                <div class="field" style="margin-top:4px; gap:8px; align-items:center;">
+                    <label style="min-width:120px; font-weight:500;">Auto-Tune</label>
+                    <input type="checkbox" id="auto_tune_checkbox" checked style="width:auto;">
+                    <small style="opacity:.6; font-size:11px;">Авто-подстройка temperature / cfg / duration по top_k / top_p.</small>
+                </div>
                 <div class="slider-item seed-mode-block">
                     <div class="field" style="gap:12px; align-items:center;">
                         <label style="min-width:120px;" data-i18n="seed_mode">Seed Mode</label>
@@ -434,13 +439,9 @@
                 <label style="font-weight:600; opacity:.85;" data-i18n="advanced">Advanced (placeholders)</label>
                 <label style="display:flex; align-items:center; gap:8px; font-size:14px; opacity:.85;">
                     <input type="checkbox" id="mbd_checkbox">
-                    Multi-Band Diffusion
+                    Diffusion Decode (MBD)
                 </label>
-                <div id="mbd-strength-field" style="display:none; align-items:center; gap:10px; font-size:12px; opacity:.8; margin:-4px 0 4px 4px;">
-                    <span style="min-width:100px;">MBD Strength</span>
-                    <input type="range" id="mbd_strength" min="0" max="1" step="0.05" value="0.5" style="flex:1;" oninput="document.getElementById('mbd_strength_val').textContent=this.value">
-                    <span id="mbd_strength_val">0.5</span>
-                </div>
+                <small style="opacity:.45; font-size:11px; margin:-2px 0 6px 26px;">При включении итоговое аудио декодируется диффузией (дольше, может быть чище). Без прогресс-бара.</small>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <label for="stem_split_select" style="min-width:120px; font-size:14px; opacity:.6;" data-i18n="stem_split">Stem Split</label>
                     <select id="stem_split_select" style="flex:1; padding:4px 6px;">
@@ -453,13 +454,7 @@
                     </select>
                 </div>
                 <small style="opacity:.5; font-size:11px; line-height:1.3;">Эти функции пока недоступны: параметры будут сохраняться в JSON со статусом not_implemented.</small>
-                <script>
-                (function(){
-                    const cb = document.getElementById('mbd_checkbox');
-                    const fld = document.getElementById('mbd-strength-field');
-                    if(cb && fld){ cb.addEventListener('change', ()=>{ fld.style.display = cb.checked? 'flex':'none'; }); }
-                })();
-                </script>
+                <!-- Скрипт показа MBD Strength удалён -->
                 <!-- Demucs arbitrary file panel relocated here -->
                 <div id="demucs-any-panel" style="margin-top:12px; padding:10px 12px; border:1px dashed #555; border-radius:6px; background:rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:8px;">
                     <div style="font-weight:600; opacity:.85;" data-i18n="demucs_any">Demucs: Arbitrary File</div>
@@ -504,13 +499,14 @@
         </main>
      </div>
 
-    <script type="module" src="{{ url_for('static', filename='js/stems.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/player.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/render.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/chat.js') }}" onload="window.initChatModule && window.initChatModule();"></script>
-    <script type="module" src="{{ url_for('static', filename='js/settings.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/modules-init.js') }}"></script>
+    <!-- cache-bust v=20250818a to гарантировать подгрузку обновлённых модулей -->
+    <script type="module" src="{{ url_for('static', filename='js/stems.js') }}?v=20250818a"></script>
+    <script type="module" src="{{ url_for('static', filename='js/player.js') }}?v=20250818a"></script>
+    <script type="module" src="{{ url_for('static', filename='js/render.js') }}?v=20250818a"></script>
+    <script type="module" src="{{ url_for('static', filename='js/chat.js') }}?v=20250818a" onload="window.initChatModule && window.initChatModule();"></script>
+    <script type="module" src="{{ url_for('static', filename='js/settings.js') }}?v=20250818a"></script>
+    <script type="module" src="{{ url_for('static', filename='js/main.js') }}?v=20250818a"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules-init.js') }}?v=20250818a"></script>
     <!-- Layout Mode script removed -->
     </div>
 </body>

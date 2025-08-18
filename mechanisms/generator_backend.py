@@ -1,4 +1,5 @@
 from .model_hijack import HijackedMusicGen
+from audiocraft.models import MultiBandDiffusion
 from audiocraft.data.audio import audio_write
 import torch, re, os, json, torchaudio, torchaudio.functional as AF, shutil, subprocess, tempfile
 from datetime import datetime
@@ -190,16 +191,23 @@ def generate_audio(socketio, model_type, prompt, audio_gen_params, melody_data, 
     
     MODEL.set_generation_params(use_sampling=True, **gen_params)
     
+    return_tokens = bool(audio_gen_params.get('multi_band_diffusion', {}).get('requested'))
+    tokens = None
     if melody_data is not None:
         melody, melody_sr = melody_data
-        output = MODEL.generate_with_chroma(
+        res = MODEL.generate_with_chroma(
             descriptions=[prompt],
             melody_wavs=melody,
             melody_sample_rate=melody_sr,
-            progress=True
+            progress=True,
+            return_tokens=return_tokens
         )
     else:
-        output = MODEL.generate(descriptions=[prompt], progress=True)
+        res = MODEL.generate(descriptions=[prompt], progress=True, return_tokens=return_tokens)
+    if return_tokens:
+        output, tokens = res  # (wav, tokens)
+    else:
+        output = res
     # Append continuation (присоединяем оригинал перед новым сегментом)
     if continuation_data is not None:
         try:
@@ -286,4 +294,15 @@ def generate_audio(socketio, model_type, prompt, audio_gen_params, melody_data, 
     else:
         audio_gen_params['append_mode'] = False
 
+    # Inline MBD decode (заменяем основное аудио) если включено и токены есть
+    if tokens is not None and audio_gen_params.get('multi_band_diffusion', {}).get('requested'):
+        try:
+            mbd = MultiBandDiffusion.get_mbd_musicgen()
+            mbd_audio = mbd.tokens_to_wav(tokens)
+            output = mbd_audio  # заменяем
+            audio_gen_params['multi_band_diffusion']['impl'] = 'audiocraft_mbd'
+            audio_gen_params['multi_band_diffusion']['status'] = 'applied'
+        except Exception as e:
+            audio_gen_params['multi_band_diffusion']['status'] = 'error'
+            audio_gen_params['multi_band_diffusion']['error'] = str(e)
     return write_audio(model_type, prompt, output, audio_gen_params)
