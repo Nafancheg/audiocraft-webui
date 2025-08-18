@@ -241,41 +241,9 @@ function deleteAudio(wavPath, cardEl) {
 const rootStyles = getComputedStyle(document.documentElement);  
 const completionColor = rootStyles.getPropertyValue('--hamster').trim();  
 
-// Прогресс генерации: вывод в чат
-let __chatProgressMsgEl = null;
-socket.on('progress', function(data) {
-    const pct = (data.progress*100||0).toFixed(1);
-    const progEl = document.getElementById('chat-progress');
-    if (progEl){
-        progEl.style.display='block';
-        progEl.textContent = 'Генерация: '+pct+'%';
-    }
-    // Снимаем сообщение анализа при первом прогрессе
-    if (window.__analysisWaitActive){
-        const aw = document.getElementById('analysis-wait-msg'); if (aw) try{ aw.remove(); }catch(_){}
-        window.__analysisWaitActive=false;
-    }
-    if (window.addChatMessage){
-        if(!__chatProgressMsgEl){
-            // создаём отдельный message контейнер (assistant role)
-            const chatBox = document.getElementById('chat-messages');
-            if(chatBox){
-                __chatProgressMsgEl = document.createElement('div');
-                __chatProgressMsgEl.className='chat-msg system';
-                __chatProgressMsgEl.innerHTML='<div class="msg-inner">Генерация: '+pct+'%</div>';
-                chatBox.appendChild(__chatProgressMsgEl);
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }
-        } else {
-            const inner = __chatProgressMsgEl.querySelector('.msg-inner'); if(inner) inner.textContent='Генерация: '+pct+'%';
-        }
-    }
-});
-socket.on('on_finish_audio', function(){
-    const progEl = document.getElementById('chat-progress'); if(progEl){ progEl.style.display='none'; progEl.textContent=''; }
-    // Удаляем прогресс сообщение целиком (не оставляем "Генерация завершена")
-    if(__chatProgressMsgEl){ try{ __chatProgressMsgEl.remove(); }catch(e){} __chatProgressMsgEl=null; }
-});
+// Прогресс генерации (делегируем чат модулю)
+socket.on('progress', function(data){ const pct=(data.progress*100||0).toFixed(1); const progEl=document.getElementById('chat-progress'); if(progEl){ progEl.style.display='block'; progEl.textContent='Генерация: '+pct+'%'; } if(window.onGenerationProgress) window.onGenerationProgress(pct); });
+socket.on('on_finish_audio', function(){ const progEl=document.getElementById('chat-progress'); if(progEl){ progEl.style.display='none'; progEl.textContent=''; } if(window.clearProgressMessage) window.clearProgressMessage(); });
 
 // Удалены функции списка аудио
 
@@ -328,61 +296,7 @@ socket.on('demucs_any_done', function(data){
     buildStemsMixerUI(card, title.textContent, data.stems||[]);
 });
 
-// Получаем обновлённый seed от сервера (когда из -1 был сгенерирован реальный)
-socket.on('update_seed', function(data) {
-    try {
-        if (typeof window.__autoSeedEnabled === 'function' && window.__autoSeedEnabled()) {
-            // В авто режиме оставляем -1, игнорируя полученный seed; можно логировать при необходимости
-            return;
-        }
-        const s = data.seed;
-        const rangeEl = document.getElementById('seed');
-        const numberEl = document.getElementById('seed-text');
-        if (rangeEl && numberEl && typeof s === 'number') {
-            rangeEl.value = s;
-            numberEl.value = s;
-        }
-    } catch (e) { console.warn('Failed to update seed UI', e); }
-});
+// Seed update
+socket.on('update_seed', function(data){ try { if (typeof window.__autoSeedEnabled === 'function' && window.__autoSeedEnabled()) return; const s=data.seed; const r=document.getElementById('seed'); const n=document.getElementById('seed-text'); if(r && n && typeof s==='number'){ r.value=s; n.value=s; } } catch(e){ console.warn('Failed to update seed UI', e); } });
 
-// -------- Chat export & compact mode --------
-(function(){
-    function download(name, blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500); }
-    function exportJSON(){
-        const chatBox=document.getElementById('chat-messages'); if(!chatBox) return;
-        const data = Array.from(chatBox.querySelectorAll('.chat-msg')).map(m=>({role:[...m.classList].filter(c=>c!=='chat-msg')[0]||'user', html:m.querySelector('.msg-inner')?.innerHTML||''}));
-        const blob = new Blob([JSON.stringify({exported_at:new Date().toISOString(), messages:data}, null, 2)], {type:'application/json'});
-        const tag = new Date().toISOString().replace(/[:.]/g,'');
-        download('chat_'+tag+'.json', blob);
-    }
-    function exportTXT(){
-        const chatBox=document.getElementById('chat-messages'); if(!chatBox) return;
-        const lines = [];
-        chatBox.querySelectorAll('.chat-msg').forEach(m=>{
-            const role=[...m.classList].filter(c=>c!=='chat-msg')[0]||'user';
-            const text=m.querySelector('.msg-inner')?.innerText||'';
-            lines.push('['+role+'] '+text.replace(/\n+/g,'\n'));
-        });
-        const blob = new Blob([lines.join('\n\n')], {type:'text/plain'});
-        const tag = new Date().toISOString().replace(/[:.]/g,'');
-        download('chat_'+tag+'.txt', blob);
-    }
-    function toggleCompact(){
-        const root = document.getElementById('chat-messages'); if(!root) return;
-        root.classList.toggle('compact');
-        const btn = document.getElementById('compact-toggle-btn');
-        const lang = (document.getElementById('lang-select')||{value:'en'}).value;
-        const dict = I18N_STRINGS[lang]||I18N_STRINGS.en;
-        if (btn){ btn.textContent = root.classList.contains('compact') ? (dict.compact_off||'Normal chat') : (dict.compact_on||'Compact chat'); }
-    }
-    function init(){
-        const jsonBtn = document.getElementById('export-json-btn'); if(jsonBtn) jsonBtn.addEventListener('click', exportJSON);
-        const txtBtn = document.getElementById('export-txt-btn'); if(txtBtn) txtBtn.addEventListener('click', exportTXT);
-        const compactBtn = document.getElementById('compact-toggle-btn'); if(compactBtn) compactBtn.addEventListener('click', toggleCompact);
-        // Inject compact CSS once
-        if(!document.getElementById('compact-chat-style')){
-            const st = document.createElement('style'); st.id='compact-chat-style'; st.textContent=`#chat-messages.compact{gap:4px;}#chat-messages.compact .chat-msg .msg-inner{padding:6px 8px; font-size:13px; line-height:1.25;}#chat-messages.compact .chat-msg{max-width:780px;}#chat-messages.compact .chat-msg.user .msg-inner{background:#284274;}#chat-messages.compact .chat-msg.assistant .msg-inner{background:#242424;}`; document.head.appendChild(st);
-        }
-    }
-    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
-})();
+// Chat export/compact now handled in chat.js
