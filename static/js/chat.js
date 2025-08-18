@@ -94,3 +94,5 @@ export function clearProgressMessage(){ if(__chatProgressMsgEl){ try{ __chatProg
 
 // Expose for legacy
 window.initChatModule = initChatModule;
+window.onGenerationProgress = onGenerationProgress;
+window.clearProgressMessage = clearProgressMessage;
