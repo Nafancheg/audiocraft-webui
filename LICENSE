@@ -22,3 +22,33 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <https://unlicense.org>
+
+------------------------------------------------------------
+ADDENDUM: MODEL WEIGHTS & GENERATED OUTPUT
+------------------------------------------------------------
+This repository's source code is released under the Unlicense (public domain). 
+HOWEVER, the pre-trained model weights you may download and use with this UI (e.g. Meta / Audiocraft MusicGen / MultiBandDiffusion) are provided by third parties ("Upstream Models") and are NOT covered by the Unlicense of this code. They are subject to their own licenses, terms of use, and (where applicable) usage restrictions (commercial or non-commercial, attribution, safety policies, export compliance, acceptable use, etc.).
+
+You are solely responsible for verifying and complying with the licenses of any model weights you load. The authors of this UI do not grant you any rights to:
+ 1. The underlying model weights.
+ 2. The training data used by those models.
+  3. Any third-party intellectual property potentially implicated by generated outputs.
+
+Generated AUDIO OUTPUT ("Outputs") produced via Upstream Models may inherit restrictions from the model license. You MUST review the relevant upstream license to determine:
+ - Whether commercial use is permitted.
+ - Whether attribution is required (and how to provide it).
+ - Whether there are field-of-use or content restrictions.
+ - Whether redistribution of the weights or derivative models is limited.
+
+NO WARRANTY / NO INDEMNITY: Outputs may unintentionally resemble copyrighted works or contain artifacts influenced by training data. You assume all risk for vetting Outputs before distribution or commercial exploitation.
+
+If you fine-tune or adapt models using this UI, you must ALSO comply with the upstream license terms governing derivative models. Do not remove required attribution, notices, or license files from redistributed weights.
+
+If Meta or another upstream provider updates or revokes permissions for their model, you must cease use that is no longer permitted. The maintainers of this UI are not obligated to update or remove legacy functionality.
+
+By using this repository together with third-party model weights you acknowledge:
+ (a) This code is public domain, but model weights and Outputs may not be.
+ (b) You will independently ensure compliance with all upstream licenses and laws.
+ (c) You will not use the software or models to violate privacy, intellectual property, or applicable regulations.
+
+When in doubt: consult the official license of the specific model weight and obtain legal advice for commercial deployment.
