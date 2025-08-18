@@ -192,6 +192,27 @@ socket.on('continuation_applied', function(data){
 socket.on('postprocess_queued', function(data){ console.log('Postprocess queued', data); });
 socket.on('postprocess_progress', function(data){ console.log('Postprocess progress', data); });
 socket.on('postprocess_done', function(data){ console.log('Postprocess done', data); });
+// MBD progress
+socket.on('mbd_progress', function(data){
+    if(!data) return;
+    const detail = document.getElementById('audio-detail'); if(!detail) return;
+    const card = detail.querySelector('.audio-item'); if(!card) return;
+    let barWrap = card.querySelector('.mbd-progress');
+    if(!barWrap){
+        barWrap = document.createElement('div');
+        barWrap.className='mbd-progress';
+        barWrap.style.cssText='margin:6px 0 4px; background:#262a30; border:1px solid #333; height:12px; border-radius:6px; position:relative; overflow:hidden;';
+        const inner = document.createElement('div'); inner.className='mbd-progress-inner'; inner.style.cssText='position:absolute; left:0; top:0; height:100%; width:0%; background:linear-gradient(90deg,#5fd4ff,#9f6bff); transition:width .2s;';
+        barWrap.appendChild(inner);
+        const label = document.createElement('div'); label.className='mbd-progress-label'; label.style.cssText='font-size:11px; opacity:.75; margin-top:2px;';
+        label.textContent='MBD 0%';
+        card.appendChild(barWrap); card.appendChild(label);
+    }
+    const inner = barWrap.querySelector('.mbd-progress-inner');
+    if(inner){ inner.style.width=((data.progress||0)*100).toFixed(1)+'%'; }
+    const lbl = card.querySelector('.mbd-progress-label'); if(lbl) lbl.textContent = 'MBD '+((data.progress||0)*100).toFixed(0)+'%';
+    if(data.progress>=1){ setTimeout(()=>{ try{ barWrap.remove(); if(lbl) lbl.remove(); }catch(_){} }, 1200); }
+});
 // Stem split progress
 function buildStemsMixerUI(card, promptText, stems){
     if (!stems || !stems.length) return;
