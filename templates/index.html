@@ -432,10 +432,15 @@
 
             <div class="field" style="flex-direction:column; align-items:stretch; margin-top:14px; gap:6px; padding:8px; border:1px dashed #444; border-radius:6px;">
                 <label style="font-weight:600; opacity:.85;" data-i18n="advanced">Advanced (placeholders)</label>
-                <label style="display:flex; align-items:center; gap:8px; font-size:14px; opacity:.6;">
-                    <input type="checkbox" id="mbd_checkbox" disabled>
-                    Multi-Band Diffusion (coming soon)
+                <label style="display:flex; align-items:center; gap:8px; font-size:14px; opacity:.85;">
+                    <input type="checkbox" id="mbd_checkbox">
+                    Multi-Band Diffusion
                 </label>
+                <div id="mbd-strength-field" style="display:none; align-items:center; gap:10px; font-size:12px; opacity:.8; margin:-4px 0 4px 4px;">
+                    <span style="min-width:100px;">MBD Strength</span>
+                    <input type="range" id="mbd_strength" min="0" max="1" step="0.05" value="0.5" style="flex:1;" oninput="document.getElementById('mbd_strength_val').textContent=this.value">
+                    <span id="mbd_strength_val">0.5</span>
+                </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <label for="stem_split_select" style="min-width:120px; font-size:14px; opacity:.6;" data-i18n="stem_split">Stem Split</label>
                     <select id="stem_split_select" style="flex:1; padding:4px 6px;">
@@ -448,6 +453,13 @@
                     </select>
                 </div>
                 <small style="opacity:.5; font-size:11px; line-height:1.3;">Эти функции пока недоступны: параметры будут сохраняться в JSON со статусом not_implemented.</small>
+                <script>
+                (function(){
+                    const cb = document.getElementById('mbd_checkbox');
+                    const fld = document.getElementById('mbd-strength-field');
+                    if(cb && fld){ cb.addEventListener('change', ()=>{ fld.style.display = cb.checked? 'flex':'none'; }); }
+                })();
+                </script>
                 <!-- Demucs arbitrary file panel relocated here -->
                 <div id="demucs-any-panel" style="margin-top:12px; padding:10px 12px; border:1px dashed #555; border-radius:6px; background:rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:8px;">
                     <div style="font-weight:600; opacity:.85;" data-i18n="demucs_any">Demucs: Arbitrary File</div>
@@ -494,6 +506,24 @@
 
     <script src="{{ url_for('static', filename='main.js') }}"></script>
     <script>
+        // Взаимное исключение top_k / top_p: если top_p > 0, блокируем top_k
+        (function(){
+            function applyCoupling(){
+                var tp = parseFloat(document.getElementById('top_p').value || '0');
+                var tkRange = document.getElementById('top_k');
+                var tkNum = document.getElementById('top_k-text');
+                if (!tkRange || !tkNum) return;
+                if (tp > 0){
+                    tkRange.disabled = true; tkNum.disabled = true; tkRange.dataset.coupled='1';
+                } else {
+                    tkRange.disabled = false; tkNum.disabled = false; tkRange.dataset.coupled='0';
+                }
+            }
+            document.addEventListener('DOMContentLoaded', ()=>{
+                var tpR = document.getElementById('top_p');
+                if(tpR){ tpR.addEventListener('input', applyCoupling); applyCoupling(); }
+            });
+        })();
         // Seed helpers (добавлено)
         (function(){
             const autoCb = document.getElementById('auto-seed');
@@ -618,7 +648,31 @@
                         // Чистим UI: чат, detail, локальное хранилище
                         try{ localStorage.removeItem('chat_history_v1'); }catch(e){}
                         const chatBox=document.getElementById('chat-messages'); if(chatBox) chatBox.innerHTML='';
-                        const detail=document.getElementById('audio-detail'); if(detail) detail.innerHTML='';
+                        const detail=document.getElementById('audio-detail');
+                        if(detail){
+                            // Стараемся чисто очистить содержимое, не ломая базовый layout
+                            const host = detail.querySelector('.audio-card-host');
+                            const stems = detail.querySelector('.stems-side-panel');
+                            if(host) host.innerHTML='';
+                            if(stems){
+                                // Удаляем дочерние специфические элементы (микшер, прогресс, кнопки)
+                                stems.querySelectorAll('.stems-container, .stems-progress-placeholder, .stems-toggle-btn').forEach(n=>n.remove());
+                            } else {
+                                // Если панель стемов была удалена ранее — пересоздадим базовую структуру
+                                const newStems = document.createElement('div');
+                                newStems.className='stems-side-panel';
+                                newStems.style.cssText='flex:0 0 420px; display:flex; flex-direction:column; gap:12px; min-height:100%;';
+                                detail.appendChild(newStems);
+                            }
+                            // Если хоста нет (удален предыдущими очистками) — пересоздать
+                            if(!host){
+                                const newHost=document.createElement('div');
+                                newHost.className='audio-card-host';
+                                newHost.style.cssText='flex:1 1 auto; min-width:0;';
+                                // Вставляем хост первым
+                                detail.insertBefore(newHost, detail.firstChild);
+                            }
+                        }
                         closeModal();
                     })
                     .catch(()=>{ closeModal(); });

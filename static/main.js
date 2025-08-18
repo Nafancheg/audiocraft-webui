@@ -102,8 +102,10 @@ function submitSliders() {
     var contAudio = document.getElementById('continuation-preview');
     var continuationSrc = (appendCb && appendCb.checked && contAudio && contAudio.src) ? contAudio.src : null;
     var mbd = document.getElementById('mbd_checkbox');
+    var mbdStrengthEl = document.getElementById('mbd_strength');
     var stemSel = document.getElementById('stem_split_select');
     var mbdEnabled = mbd ? !!mbd.checked : false;
+    var mbdStrength = (mbdEnabled && mbdStrengthEl) ? parseFloat(mbdStrengthEl.value) : null;
     // Удаляем предыдущие карточки (на случай если что-то осталось)
     (function(){
         const detail = document.getElementById('audio-detail');
@@ -122,7 +124,7 @@ function submitSliders() {
             slidersData[slider.id] = slider.value;
         });
         try {
-            socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+            socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, mbd_strength: mbdStrength, stem_split: stemValue, artist: artistName});
         } catch(e){ console.error('Emit submit_sliders failed', e); }
         return;
     }
@@ -130,8 +132,25 @@ function submitSliders() {
     document.querySelectorAll('input[type="range"]').forEach(function(slider) {
         slidersData[slider.id] = slider.value;
     });
+    // Melody + audio prompt: показать сообщение анализа до первого прогресса
     try {
-        socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+        if (audioSrc) {
+            // Удаляем старое, если есть
+            const old = document.getElementById('analysis-wait-msg'); if (old) old.remove();
+            const chatBox = document.getElementById('chat-messages');
+            if (chatBox) {
+                const wrap = document.createElement('div');
+                wrap.className='chat-msg system';
+                wrap.id='analysis-wait-msg';
+                wrap.innerHTML='<div class="msg-inner">Ожидайте: идёт анализ аудио...</div>';
+                chatBox.appendChild(wrap);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
+            window.__analysisWaitActive = true;
+        }
+    } catch(e){ console.warn('analysis wait msg failed', e); }
+    try {
+    socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, mbd_strength: mbdStrength, stem_split: stemValue, artist: artistName});
     } catch(e){ console.error('Emit submit_sliders (melody) failed', e); }
 }
 
@@ -560,14 +579,34 @@ function renderDetail(json_data, filename){
         const contLine=document.createElement('div'); contLine.className='audio-item-text'; contLine.textContent=`Continuation: orig ${origSecs!=null?origSecs+'s':'?'}`; paramsWrap.appendChild(contLine);
     }
     if (seedValue!==null){
-        const copyBtn=document.createElement('button'); copyBtn.textContent='Copy Seed'; copyBtn.style.margin='4px 6px 8px 0'; copyBtn.addEventListener('click',()=>{ try{navigator.clipboard.writeText(String(seedValue)); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);}catch(e){copyBtn.textContent='Fail'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);} }); card.appendChild(copyBtn);
+        // Создаём (или переиспользуем) блок кнопок
+        var actionsBar = card.querySelector('.audio-actions-bar');
+        if(!actionsBar){
+            actionsBar = document.createElement('div');
+            actionsBar.className='audio-actions-bar';
+            actionsBar.style.display='flex';
+            actionsBar.style.flexWrap='wrap';
+            actionsBar.style.gap='6px';
+            actionsBar.style.margin='4px 0 8px';
+            card.appendChild(actionsBar);
+        }
+        const copyBtn=document.createElement('button'); copyBtn.textContent='Copy Seed'; copyBtn.addEventListener('click',()=>{ try{navigator.clipboard.writeText(String(seedValue)); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);}catch(e){copyBtn.textContent='Fail'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);} }); actionsBar.appendChild(copyBtn);
     }
     // Rerun button – повторная генерация с теми же параметрами
     (function(){
         try {
+            var actionsBar = card.querySelector('.audio-actions-bar');
+            if(!actionsBar){
+                actionsBar = document.createElement('div');
+                actionsBar.className='audio-actions-bar';
+                actionsBar.style.display='flex';
+                actionsBar.style.flexWrap='wrap';
+                actionsBar.style.gap='6px';
+                actionsBar.style.margin='4px 0 8px';
+                card.appendChild(actionsBar);
+            }
             const rerunBtn = document.createElement('button');
             rerunBtn.textContent = (I18N_STRINGS[(document.getElementById('lang-select')||{value:'en'}).value]||I18N_STRINGS.en).rerun || 'Rerun';
-            rerunBtn.style.margin='4px 6px 8px 0';
             rerunBtn.addEventListener('click', ()=>{
                 try {
                     const params = JSON.parse(JSON.stringify(json_data.parameters||{}));
@@ -594,10 +633,20 @@ function renderDetail(json_data, filename){
                     socket.emit('submit_sliders', payload);
                 } catch(err){ console.warn('rerun emit failed', err); }
             });
-            card.appendChild(rerunBtn);
+            actionsBar.appendChild(rerunBtn);
         } catch(e) { console.warn('Rerun setup failed', e); }
     })();
-    const delBtn=document.createElement('button'); delBtn.textContent='Delete'; delBtn.style.margin='4px 0 8px 0';
+    var actionsBar = card.querySelector('.audio-actions-bar');
+    if(!actionsBar){
+        actionsBar = document.createElement('div');
+        actionsBar.className='audio-actions-bar';
+        actionsBar.style.display='flex';
+        actionsBar.style.flexWrap='wrap';
+        actionsBar.style.gap='6px';
+        actionsBar.style.margin='4px 0 8px';
+        card.appendChild(actionsBar);
+    }
+    const delBtn=document.createElement('button'); delBtn.textContent='Delete';
     delBtn.addEventListener('click',()=>{
         deleteAudio(filename, card);
         // Очищаем только host, не уничтожая панель стемов целиком
@@ -608,7 +657,7 @@ function renderDetail(json_data, filename){
             const ph = stemsPanel.querySelector('.stems-progress-placeholder'); if (ph) ph.remove();
         }
     });
-    card.appendChild(delBtn);
+    actionsBar.appendChild(delBtn);
     card.appendChild(paramsWrap);
     // Stems if exist
     try { if (json_data.postprocess && Array.isArray(json_data.postprocess.tasks)){ const stemTask=json_data.postprocess.tasks.find(t=>t.type==='stem_split' && t.stems && t.stems.length); if (stemTask){ buildStemsMixerUI(card, json_data.prompt, stemTask.stems); } } } catch(e){}
@@ -645,6 +694,11 @@ socket.on('progress', function(data) {
     if (progEl){
         progEl.style.display='block';
         progEl.textContent = 'Генерация: '+pct+'%';
+    }
+    // Снимаем сообщение анализа при первом прогрессе
+    if (window.__analysisWaitActive){
+        const aw = document.getElementById('analysis-wait-msg'); if (aw) try{ aw.remove(); }catch(_){}
+        window.__analysisWaitActive=false;
     }
     if (window.addChatMessage){
         if(!__chatProgressMsgEl){

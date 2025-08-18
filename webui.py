@@ -205,6 +205,36 @@ def _run_stem_split(meta, json_path, task, socketio):
         task['status'] = 'error'
         task['error'] = str(e)
 
+def _run_mbd(meta, json_path, task, socketio):
+    """Placeholder Multi-Band Diffusion postprocess with fake progressive updates.
+    Replaces/creates *_mbd.wav and updates metadata. Real implementation should be plugged here."""
+    try:
+        base_no_ext = os.path.splitext(json_path)[0]
+        # locate original audio
+        audio_file = None
+        for ext in ('.wav','.flac','.mp3'):
+            cand = base_no_ext + ext
+            if os.path.exists(cand):
+                audio_file = cand; break
+        if not audio_file:
+            task['status'] = 'error'; task['error']='audio_missing'; return
+        # Simulate steps
+        strength = meta.get('parameters',{}).get('multi_band_diffusion',{}).get('strength',0.5)
+        total_steps = 20
+        out_path = base_no_ext + '_mbd.wav'
+        # Just copy original as placeholder
+        try:
+            shutil.copyfile(audio_file, out_path)
+        except Exception as ce:
+            task['status']='error'; task['error']=f'copy_fail:{ce}'; return
+        for i in range(total_steps+1):
+            socketio.emit('mbd_progress', {'prompt': meta.get('prompt'), 'progress': i/total_steps, 'strength': strength})
+            time.sleep(0.05)
+        task['status']='done'
+        task['output']= out_path.replace('\\','/')
+    except Exception as e:
+        task['status']='error'; task['error']=str(e)
+
 def worker_postprocess():
     while True:
         job = postprocess_queue.get()
@@ -228,10 +258,14 @@ def worker_postprocess():
                         with open(json_path, 'w', encoding='utf-8') as jf:
                             json.dump(meta, jf, indent=4)
                         _run_stem_split(meta, json_path, t, socketio)
+                    elif t['type'] == 'mbd':
+                        t['status'] = 'running'
+                        with open(json_path, 'w', encoding='utf-8') as jf:
+                            json.dump(meta, jf, indent=4)
+                        _run_mbd(meta, json_path, t, socketio)
                     else:
-                        # Placeholder for future mbd etc.
                         for p in range(0,101,25):
-                            socketio.emit('postprocess_progress', {'prompt': job.get('prompt'), 'progress': p/100.0})
+                            socketio.emit('postprocess_progress', {'prompt': job.get('prompt'), 'progress': p/100.0, 'task': t['type']})
                             threading.Event().wait(0.05)
                         t['status'] = 'not_implemented'
                 any_running = True
@@ -480,9 +514,16 @@ def handle_submit_sliders(json):
 
     # Placeholders (Iteration 3)
     mbd_flag = bool(json.get('mbd'))
+    mbd_strength = json.get('mbd_strength')
+    try:
+        if mbd_strength is not None:
+            mbd_strength = max(0.0, min(1.0, float(mbd_strength)))
+    except:
+        mbd_strength = None
     stem_split = json.get('stem_split') or ''
     slider_data['multi_band_diffusion'] = {
         'requested': mbd_flag,
+        'strength': mbd_strength,
         'status': 'not_implemented'
     }
     if stem_split:
