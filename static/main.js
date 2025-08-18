@@ -97,12 +97,13 @@ function submitSliders() {
     var outSampleRate = sampleRateSel ? sampleRateSel.value : 'original';
 
     var audioElement = document.getElementById('audio-preview');
-    audioSrc = audioElement.src;
+    var audioSrc = (audioElement && audioElement.src) ? audioElement.src : '';
     var appendCb = document.getElementById('append-continuation');
     var contAudio = document.getElementById('continuation-preview');
     var continuationSrc = (appendCb && appendCb.checked && contAudio && contAudio.src) ? contAudio.src : null;
     var mbd = document.getElementById('mbd_checkbox');
     var stemSel = document.getElementById('stem_split_select');
+    var mbdEnabled = mbd ? !!mbd.checked : false;
     // Удаляем предыдущие карточки (на случай если что-то осталось)
     (function(){
         const detail = document.getElementById('audio-detail');
@@ -111,18 +112,27 @@ function submitSliders() {
     })();
     var stemValue = stemSel ? stemSel.value : '';
 
+    if (!textData || !textData.trim()) {
+        console.warn('Пустой промпт: генерация не отправлена');
+        return;
+    }
+
     if (modelSize !== "melody" || audioSrc === "") {
         document.querySelectorAll('input[type="range"]').forEach(function(slider) {
             slidersData[slider.id] = slider.value;
         });
-    socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+        try {
+            socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+        } catch(e){ console.error('Emit submit_sliders failed', e); }
         return;
     }
 
     document.querySelectorAll('input[type="range"]').forEach(function(slider) {
         slidersData[slider.id] = slider.value;
     });
-    socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+    try {
+        socket.emit('submit_sliders', {values: slidersData, prompt:textData, model:modelSize, audioPromptUrl:audioSrc, format: outFormat, sample_rate: outSampleRate, appendContinuation: !!continuationSrc, continuationUrl: continuationSrc, mbd: mbdEnabled, stem_split: stemValue, artist: artistName});
+    } catch(e){ console.error('Emit submit_sliders (melody) failed', e); }
 }
 
 // Очередь отключена в чат-режиме; add_to_queue не используется
