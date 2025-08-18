@@ -5,3 +5,4 @@ flask_socketio
 torchaudio
 ffmpeg
 demucs
+pytest
