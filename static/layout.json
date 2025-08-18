@@ -1,0 +1,79 @@
+{
+  "map": {
+    "format-block": {
+      "zone": 0,
+      "pos": 0
+    },
+    "samplerate-block": {
+      "zone": 0,
+      "pos": 1
+    },
+    "ffmpeg-note": {
+      "zone": 0,
+      "pos": 2
+    },
+    "audio-prompt": {
+      "zone": 0,
+      "pos": 3
+    },
+    "continuation": {
+      "zone": 0,
+      "pos": 4
+    },
+    "top_k": {
+      "zone": 0,
+      "pos": 5
+    },
+    "duration": {
+      "zone": 0,
+      "pos": 6
+    },
+    "cfg_coef": {
+      "zone": 0,
+      "pos": 7
+    },
+    "seed": {
+      "zone": 0,
+      "pos": 8
+    },
+    "seed_mode": {
+      "zone": 0,
+      "pos": 9
+    },
+    "temperature": {
+      "zone": 0,
+      "pos": 10
+    },
+    "top_p": {
+      "zone": 0,
+      "pos": 11
+    },
+    "gen-form-box": {
+      "zone": 0,
+      "pos": 12
+    },
+    "design-editor-box": {
+      "zone": 0,
+      "pos": 13
+    },
+    "prompt-queue": {
+      "zone": 1,
+      "pos": 0
+    },
+    "audio-detail": {
+      "zone": 2,
+      "pos": 0
+    },
+    "audio-list": {
+      "zone": 2,
+      "pos": 1
+    }
+  },
+  "zones": 3,
+  "styles": {
+    "#audio-detail": "width:788.765625px; height:493px; max-width:2000px; padding:12px; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; order:0;",
+    "#gen-form-box": "width:1400px; height:1575.48px; max-width:1400px; padding:0px; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; order:0;",
+    "[data-layout-id]": "[data-layout-id=\"format-block\"]{order:0;}\n[data-layout-id=\"samplerate-block\"]{order:1;}\n[data-layout-id=\"ffmpeg-note\"]{order:2;}\n[data-layout-id=\"audio-prompt\"]{order:3;}\n[data-layout-id=\"continuation\"]{order:4;}\n[data-layout-id=\"top_k\"]{order:5;}\n[data-layout-id=\"duration\"]{order:6;}\n[data-layout-id=\"cfg_coef\"]{order:7;}\n[data-layout-id=\"seed\"]{order:8;}\n[data-layout-id=\"seed_mode\"]{order:9;}\n[data-layout-id=\"temperature\"]{order:10;}\n[data-layout-id=\"top_p\"]{order:11;}\n[data-layout-id=\"gen-form-box\"]{order:12;}\n[data-layout-id=\"design-editor-box\"]{order:13;}\n[data-layout-id=\"prompt-queue\"]{order:0;}\n[data-layout-id=\"audio-detail\"]{order:0;}\n[data-layout-id=\"audio-list\"]{order:1;}",
+    "#modelSelector": "width:300px; height:34px; padding:0px; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; order:0;"
+  }
+}

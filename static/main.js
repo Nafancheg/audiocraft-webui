@@ -16,7 +16,12 @@ const I18N_STRINGS = {
         stem_split: 'Stem Split',
         none: 'None',
         demucs_any: 'Demucs: Arbitrary File',
-        separate: 'Separate'
+    separate: 'Separate',
+    rerun: 'Rerun',
+    export_json: 'Export JSON',
+    export_txt: 'Export TXT',
+    compact_on: 'Compact chat',
+    compact_off: 'Normal chat'
     },
     ru: {
         language_label: 'Язык',
@@ -32,7 +37,12 @@ const I18N_STRINGS = {
         stem_split: 'Разделение стемов',
         none: 'Нет',
         demucs_any: 'Demucs: любой файл',
-        separate: 'Разделить'
+    separate: 'Разделить',
+    rerun: 'Повтор',
+    export_json: 'Экспорт JSON',
+    export_txt: 'Экспорт TXT',
+    compact_on: 'Компактный чат',
+    compact_off: 'Обычный чат'
     }
 };
 
@@ -441,6 +451,22 @@ function renderDetail(json_data, filename){
     if (!detail) return;
     const host = detail.querySelector('.audio-card-host');
     if (!host) return;
+    // Guard: если уже показан этот же файл и нет новых стемов — не перерисовываем
+    try {
+        const existing = host.querySelector('.audio-item');
+        if (existing && existing.dataset.file === filename) {
+            // Проверяем, появились ли новые стемы в json_data
+            const hadStems = existing.dataset.stems === '1';
+            let hasStemsNow = false;
+            if (json_data.postprocess && Array.isArray(json_data.postprocess.tasks)) {
+                const stemTask = json_data.postprocess.tasks.find(t=>t.type==='stem_split' && t.stems && t.stems.length);
+                if (stemTask) hasStemsNow = true;
+            }
+            if (!hasStemsNow || (hasStemsNow && hadStems)) {
+                return; // ничего нового
+            }
+        }
+    } catch(e){}
     // Удаляем любые старые карточки вне host (защита от старых версий)
     detail.querySelectorAll(':scope > .audio-item').forEach(el=>el.remove());
     // Очищаем контейнер карточки
@@ -461,6 +487,7 @@ function renderDetail(json_data, filename){
     const card = document.createElement('div');
     card.className='audio-item';
     card.style.maxWidth='100%';
+    card.dataset.file = filename;
     // Имя песни = базовое имя файла без расширения
     const baseName = (filename||'').split('/').pop().split('\\').pop();
     const displayName = baseName.replace(/\.[a-z0-9]+$/i,'');
@@ -525,6 +552,41 @@ function renderDetail(json_data, filename){
     if (seedValue!==null){
         const copyBtn=document.createElement('button'); copyBtn.textContent='Copy Seed'; copyBtn.style.margin='4px 6px 8px 0'; copyBtn.addEventListener('click',()=>{ try{navigator.clipboard.writeText(String(seedValue)); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);}catch(e){copyBtn.textContent='Fail'; setTimeout(()=>copyBtn.textContent='Copy Seed',1200);} }); card.appendChild(copyBtn);
     }
+    // Rerun button – повторная генерация с теми же параметрами
+    (function(){
+        try {
+            const rerunBtn = document.createElement('button');
+            rerunBtn.textContent = (I18N_STRINGS[(document.getElementById('lang-select')||{value:'en'}).value]||I18N_STRINGS.en).rerun || 'Rerun';
+            rerunBtn.style.margin='4px 6px 8px 0';
+            rerunBtn.addEventListener('click', ()=>{
+                try {
+                    const params = JSON.parse(JSON.stringify(json_data.parameters||{}));
+                    const values = {};
+                    ['top_k','duration','cfg_coef','top_p','temperature','seed'].forEach(k=>{ if(params[k]!==undefined) values[k]=params[k]; });
+                    const payload = {
+                        values: values,
+                        prompt: json_data.prompt || '',
+                        model: json_data.model || 'large',
+                        format: params.format || 'wav',
+                        sample_rate: (params.sample_rate===undefined? 'original': params.sample_rate),
+                        appendContinuation: !!params.append_mode && !!params.continuation_source,
+                        continuationUrl: params.append_mode? params.continuation_source: null,
+                        mbd: (params.multi_band_diffusion && params.multi_band_diffusion.requested) || false,
+                        stem_split: (params.stem_split && params.stem_split.requested) || '',
+                        artist: params.artist || null
+                    };
+                    // Если авто seed активен (UI), и seed >=0 — даём возможность пересоздать новый seed
+                    try {
+                        if (typeof window.__autoSeedEnabled==='function' && window.__autoSeedEnabled()) {
+                            payload.values.seed = -1; // сервер задаст новый и обновит
+                        }
+                    } catch(_){ }
+                    socket.emit('submit_sliders', payload);
+                } catch(err){ console.warn('rerun emit failed', err); }
+            });
+            card.appendChild(rerunBtn);
+        } catch(e) { console.warn('Rerun setup failed', e); }
+    })();
     const delBtn=document.createElement('button'); delBtn.textContent='Delete'; delBtn.style.margin='4px 0 8px 0';
     delBtn.addEventListener('click',()=>{
         deleteAudio(filename, card);
@@ -663,3 +725,45 @@ socket.on('update_seed', function(data) {
         }
     } catch (e) { console.warn('Failed to update seed UI', e); }
 });
+
+// -------- Chat export & compact mode --------
+(function(){
+    function download(name, blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1500); }
+    function exportJSON(){
+        const chatBox=document.getElementById('chat-messages'); if(!chatBox) return;
+        const data = Array.from(chatBox.querySelectorAll('.chat-msg')).map(m=>({role:[...m.classList].filter(c=>c!=='chat-msg')[0]||'user', html:m.querySelector('.msg-inner')?.innerHTML||''}));
+        const blob = new Blob([JSON.stringify({exported_at:new Date().toISOString(), messages:data}, null, 2)], {type:'application/json'});
+        const tag = new Date().toISOString().replace(/[:.]/g,'');
+        download('chat_'+tag+'.json', blob);
+    }
+    function exportTXT(){
+        const chatBox=document.getElementById('chat-messages'); if(!chatBox) return;
+        const lines = [];
+        chatBox.querySelectorAll('.chat-msg').forEach(m=>{
+            const role=[...m.classList].filter(c=>c!=='chat-msg')[0]||'user';
+            const text=m.querySelector('.msg-inner')?.innerText||'';
+            lines.push('['+role+'] '+text.replace(/\n+/g,'\n'));
+        });
+        const blob = new Blob([lines.join('\n\n')], {type:'text/plain'});
+        const tag = new Date().toISOString().replace(/[:.]/g,'');
+        download('chat_'+tag+'.txt', blob);
+    }
+    function toggleCompact(){
+        const root = document.getElementById('chat-messages'); if(!root) return;
+        root.classList.toggle('compact');
+        const btn = document.getElementById('compact-toggle-btn');
+        const lang = (document.getElementById('lang-select')||{value:'en'}).value;
+        const dict = I18N_STRINGS[lang]||I18N_STRINGS.en;
+        if (btn){ btn.textContent = root.classList.contains('compact') ? (dict.compact_off||'Normal chat') : (dict.compact_on||'Compact chat'); }
+    }
+    function init(){
+        const jsonBtn = document.getElementById('export-json-btn'); if(jsonBtn) jsonBtn.addEventListener('click', exportJSON);
+        const txtBtn = document.getElementById('export-txt-btn'); if(txtBtn) txtBtn.addEventListener('click', exportTXT);
+        const compactBtn = document.getElementById('compact-toggle-btn'); if(compactBtn) compactBtn.addEventListener('click', toggleCompact);
+        // Inject compact CSS once
+        if(!document.getElementById('compact-chat-style')){
+            const st = document.createElement('style'); st.id='compact-chat-style'; st.textContent=`#chat-messages.compact{gap:4px;}#chat-messages.compact .chat-msg .msg-inner{padding:6px 8px; font-size:13px; line-height:1.25;}#chat-messages.compact .chat-msg{max-width:780px;}#chat-messages.compact .chat-msg.user .msg-inner{background:#284274;}#chat-messages.compact .chat-msg.assistant .msg-inner{background:#242424;}`; document.head.appendChild(st);
+        }
+    }
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
